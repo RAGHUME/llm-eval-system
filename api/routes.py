@@ -554,3 +554,106 @@ async def iterations_detail(request: Request, lineage_id: str):
         request=request,
         context={"lineages": None, "detail": detail},
     )
+
+
+# ===========================================================================
+# GET /compare — Model Comparison Form
+# POST /compare-models — Run Multi-Model Comparison
+# ===========================================================================
+
+@router.get("/compare", response_class=HTMLResponse)
+async def compare_page(request: Request):
+    """Show the model comparison form with installed models."""
+    models = await list_models()
+    return templates.TemplateResponse(
+        name="compare.html",
+        request=request,
+        context={"results": None, "error": None, "models": models},
+    )
+
+
+@router.post("/compare-models", response_class=HTMLResponse)
+async def compare_models_route(request: Request):
+    """
+    Run the same prompt across multiple Ollama models and compare scores.
+    """
+    from core.ollama_interface import compare_models
+    from evaluation.evaluator import evaluate_single
+
+    form = await request.form()
+    query = form.get("query", "").strip()
+    reference = form.get("reference_answer", "").strip()
+    prompt_text = form.get("prompt_text", "").strip()
+    selected_models = form.getlist("selected_models")
+
+    if len(selected_models) < 2:
+        models = await list_models()
+        return templates.TemplateResponse(
+            name="compare.html",
+            request=request,
+            context={"results": None, "error": "Select at least 2 models to compare.", "models": models},
+        )
+
+    try:
+        logger.info(f"Model comparison: {len(selected_models)} models for '{query[:50]}'")
+
+        # Get responses from each model
+        responses = await compare_models(prompt_text, selected_models)
+
+        # Score each response
+        results = []
+        for resp_data in responses:
+            model_name = resp_data["model"]
+            response_text = resp_data.get("response", "")
+
+            if response_text and not resp_data.get("error"):
+                scores = await evaluate_single(
+                    query=query,
+                    reference=reference,
+                    prompt_text=prompt_text,
+                    response=response_text,
+                    model=model_name,
+                    skip_consistency=True,
+                )
+            else:
+                scores = {
+                    "bleu": 0, "rouge": 0, "relevance": 0,
+                    "entity_score": 0, "structure_score": 0,
+                    "consistency_score": 0, "llm_judge_score": 0,
+                    "total_score": 0,
+                }
+
+            results.append({
+                "model": model_name,
+                "response": response_text,
+                "tokens": resp_data.get("tokens", 0),
+                "error": resp_data.get("error"),
+                "scores": scores,
+                "total_score": round(scores["total_score"], 3),
+            })
+
+        # Find winner
+        best = max(results, key=lambda r: r["total_score"])
+        winner = best["model"]
+        best_score = best["total_score"]
+
+        return templates.TemplateResponse(
+            name="compare.html",
+            request=request,
+            context={
+                "results": results,
+                "winner": winner,
+                "best_score": best_score,
+                "query": query,
+                "error": None,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Model comparison error: {e}")
+        models = await list_models()
+        return templates.TemplateResponse(
+            name="compare.html",
+            request=request,
+            context={"results": None, "error": f"Comparison failed: {str(e)}", "models": models},
+        )

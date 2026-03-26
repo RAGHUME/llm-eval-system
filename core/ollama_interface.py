@@ -213,3 +213,26 @@ def test_connection_sync() -> bool:
         return resp.status_code == 200
     except Exception:
         return False
+
+
+async def compare_models(
+    prompt: str,
+    models: list[str],
+) -> list[dict]:
+    """
+    Run the same prompt against multiple Ollama models sequentially.
+    Sequential to avoid RAM exhaustion on 8GB systems.
+
+    Args:
+        prompt: The prompt text to send to each model
+        models: List of model names to compare
+
+    Returns:
+        List of response dicts, one per model, with:
+        - response, model, tokens, error (same as generate_response)
+    """
+    results = []
+    for model in models:
+        result = await generate_response(prompt, model)
+        results.append(result)
+    return results

@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}LLM Eval System — Model Comparison{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="mb-8 animate-fade-in">
+    <h1 class="text-3xl font-extrabold text-text-primary mb-2">⚔️ Model Comparison</h1>
+    <p class="text-text-muted">Test the same prompt across multiple models to find which one performs best.</p>
+</section>
+
+{% if error %}
+<div class="mb-6 px-5 py-4 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error text-sm animate-fade-in">
+    ⚠️ {{ error }}
+</div>
+{% endif %}
+
+{% if not results %}
+<!-- Input Form -->
+<form id="compareForm" method="POST" action="/compare-models" class="space-y-6 animate-slide-up">
+    <div class="glass-card-strong p-8 glow-purple">
+        <h2 class="text-xl font-bold text-text-primary mb-6">Setup Comparison</h2>
+
+        <div class="mb-4">
+            <label class="label-tech mb-2 block">Question / Topic</label>
+            <textarea name="query" rows="2" required
+                      class="input-well w-full px-5 py-4 text-base resize-none"
+                      placeholder="e.g., How does BERT work?"></textarea>
+        </div>
+
+        <div class="mb-4">
+            <label class="label-tech mb-2 block">Reference Answer <span class="text-text-dim">(optional)</span></label>
+            <textarea name="reference_answer" rows="2"
+                      class="input-well w-full px-5 py-4 text-sm resize-none"
+                      placeholder="Provide a gold-standard answer for scoring..."></textarea>
+        </div>
+
+        <div class="mb-4">
+            <label class="label-tech mb-2 block">Prompt to Test</label>
+            <textarea name="prompt_text" rows="3" required
+                      class="input-well w-full px-5 py-4 text-sm resize-none"
+                      placeholder="You are an expert. Explain how BERT works step by step..."></textarea>
+        </div>
+
+        <!-- Model Selection -->
+        <div class="mb-4">
+            <label class="label-tech mb-2 block">Select Models to Compare</label>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {% if models is defined and models|length > 0 %}
+                    {% for m in models %}
+                    <label class="flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-surface-high/30 transition-colors" style="border: 1px solid rgba(210,187,255,0.1);">
+                        <input type="checkbox" name="selected_models" value="{{ m }}" class="accent-purple-500"
+                               {% if m == 'phi3:mini' %}checked{% endif %}>
+                        <span class="text-sm text-text-primary">{{ m }}</span>
+                    </label>
+                    {% endfor %}
+                {% else %}
+                    <label class="flex items-center gap-2 p-3 rounded-xl cursor-pointer" style="border: 1px solid rgba(210,187,255,0.1);">
+                        <input type="checkbox" name="selected_models" value="phi3:mini" checked class="accent-purple-500">
+                        <span class="text-sm text-text-primary">phi3:mini</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-3 rounded-xl cursor-pointer" style="border: 1px solid rgba(210,187,255,0.1);">
+                        <input type="checkbox" name="selected_models" value="mistral" class="accent-purple-500">
+                        <span class="text-sm text-text-primary">mistral</span>
+                    </label>
+                {% endif %}
+            </div>
+            <p class="text-xs text-text-dim mt-2">Select 2+ models. Each will receive the same prompt and be scored independently.</p>
+        </div>
+    </div>
+
+    <div class="text-center">
+        <button type="submit" id="btnSubmit" class="btn-gradient text-lg px-12 py-4 inline-flex items-center gap-3">
+            <span id="submitText">⚔️ Compare Models</span>
+            <div id="submitSpinner" class="spinner hidden"></div>
+        </button>
+    </div>
+</form>
+
+{% else %}
+<!-- RESULTS VIEW -->
+
+<!-- Winner Banner -->
+<div class="glass-card-strong p-6 mb-8 glow-purple animate-fade-in">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="label-tech mb-1">🏆 Best Model</p>
+            <h2 class="text-2xl font-extrabold text-accent-lavender">{{ winner }}</h2>
+            <p class="text-sm text-text-muted mt-1">Tested on: "{{ query[:60] }}{% if query|length > 60 %}...{% endif %}"</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-text-dim">Best Score</p>
+            <p class="text-3xl font-extrabold text-status-success">{{ best_score }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Side-by-Side Comparison -->
+<section class="grid grid-cols-1 {% if results|length == 2 %}md:grid-cols-2{% elif results|length >= 3 %}md:grid-cols-2 lg:grid-cols-3{% endif %} gap-6 mb-8">
+    {% for r in results %}
+    <div class="glass-card p-5 animate-slide-up {% if r.model == winner %}glow-purple{% endif %}" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+        <!-- Model Header -->
+        <div class="flex items-center gap-2 mb-4">
+            {% if r.model == winner %}
+            <span class="text-lg">🏆</span>
+            {% else %}
+            <span class="text-lg">🤖</span>
+            {% endif %}
+            <h3 class="text-sm font-bold text-text-primary">{{ r.model }}</h3>
+            <span class="ml-auto text-xs font-bold px-2 py-0.5 rounded-full {% if r.model == winner %}bg-status-success/20 text-status-success{% else %}bg-surface-high/40 text-text-dim{% endif %}">
+                {{ r.total_score }}
+            </span>
+        </div>
+
+        <!-- Scores Table -->
+        <div class="space-y-1.5 mb-4">
+            {% set s = r.scores %}
+            {% for metric, label in [('bleu','BLEU'),('rouge','ROUGE'),('relevance','Relevance'),('entity_score','Entity'),('structure_score','Structure'),('llm_judge_score','Judge')] %}
+            {% set val = s[metric]|default(0) %}
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-text-dim w-20">{{ label }}</span>
+                <div class="flex-1 h-2 rounded-full bg-surface-high/30 overflow-hidden">
+                    <div class="h-full rounded-full {% if val > 0.5 %}bg-status-success{% elif val > 0.3 %}bg-status-warning{% else %}bg-status-error{% endif %}" style="width: {{ (val * 100)|int }}%"></div>
+                </div>
+                <span class="text-xs font-bold w-10 text-right {% if val > 0.5 %}text-status-success{% elif val > 0.3 %}text-status-warning{% else %}text-status-error{% endif %}">{{ "%.2f"|format(val) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Response Preview -->
+        <div class="mt-3 pt-3" style="border-top: 1px solid rgba(210,187,255,0.08);">
+            <p class="text-xs font-semibold text-text-dim mb-1">Response Preview</p>
+            <p class="text-xs text-text-muted leading-relaxed">{{ r.response[:300] }}{% if r.response|length > 300 %}...{% endif %}</p>
+        </div>
+
+        <!-- Tokens -->
+        <div class="mt-2 text-xs text-text-dim">
+            ⚡ {{ r.tokens }} tokens
+        </div>
+    </div>
+    {% endfor %}
+</section>
+
+<!-- Chart -->
+<section class="glass-card p-6 mb-8 animate-slide-up" style="animation-delay: 0.3s;">
+    <h2 class="text-lg font-bold text-text-primary mb-4">Score Comparison Chart</h2>
+    <div style="height: 320px;">
+        <canvas id="compareChart"></canvas>
+    </div>
+</section>
+
+<!-- Back -->
+<div class="text-center">
+    <a href="/compare" class="btn-secondary inline-block mr-3">← Run Another Comparison</a>
+    <a href="/" class="btn-secondary inline-block">🏠 Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not results %}
+<script>
+    document.getElementById('compareForm').addEventListener('submit', function() {
+        const checked = document.querySelectorAll('input[name="selected_models"]:checked');
+        if (checked.length < 2) {
+            alert('Please select at least 2 models to compare.');
+            event.preventDefault();
+            return;
+        }
+        const btn = document.getElementById('btnSubmit');
+        const text = document.getElementById('submitText');
+        const spinner = document.getElementById('submitSpinner');
+        text.textContent = 'Comparing models... this may take several minutes';
+        spinner.classList.remove('hidden');
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
+</script>
+{% else %}
+<script id="compare-data" type="application/json">
+{{ results|tojson|safe }}
+</script>
+<script>
+    const compDataEl = document.getElementById('compare-data');
+    const compData = compDataEl ? JSON.parse(compDataEl.textContent) : [];
+
+    if (compData.length > 0) {
+        const labels = compData.map(r => r.model);
+        const metrics = [
+            {key: 'bleu', label: 'BLEU', color: 'rgba(124,58,237,0.8)'},
+            {key: 'rouge', label: 'ROUGE', color: 'rgba(167,139,250,0.8)'},
+            {key: 'relevance', label: 'Relevance', color: 'rgba(6,182,212,0.8)'},
+            {key: 'entity_score', label: 'Entity', color: 'rgba(76,215,246,0.8)'},
+            {key: 'structure_score', label: 'Structure', color: 'rgba(210,187,255,0.8)'},
+            {key: 'llm_judge_score', label: 'Judge', color: 'rgba(255,213,79,0.9)'},
+        ];
+        const datasets = metrics.map(m => ({
+            label: m.label,
+            data: compData.map(r => (r.scores || {})[m.key] || 0),
+            backgroundColor: m.color,
+            borderColor: m.color.replace('0.8','1').replace('0.9','1'),
+            borderWidth: 1,
+            borderRadius: 4,
+        }));
+
+        const ctx = document.getElementById('compareChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#ccc3d8', font: { family: 'Inter', size: 11 } } }
+                },
+                scales: {
+                    x: { ticks: { color: '#958da1' }, grid: { color: 'rgba(149,141,161,0.1)' } },
+                    y: { min: 0, max: 1, ticks: { color: '#958da1' }, grid: { color: 'rgba(149,141,161,0.1)' } },
+                },
+            },
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}
