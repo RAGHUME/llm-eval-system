@@ -1,0 +1,49 @@
+# ============================================================
+# LLM Evaluation System — .gitignore
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+data/*.db
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NLTK data (downloaded at runtime)
+nltk_data/
+
+# Sentence transformers cache
+.cache/
+
+# Logs
+*.log
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage

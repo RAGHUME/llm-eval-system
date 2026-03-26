@@ -1,0 +1,38 @@
+# ============================================================
+# LLM Evaluation & Prompt Optimization System — Dependencies
+# ============================================================
+# Install: pip install -r requirements.txt
+# Python version: 3.10+
+# ============================================================
+
+# --- Web Framework ---
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+
+# --- Async HTTP Client (for Ollama) ---
+httpx
+
+# --- Database ---
+sqlalchemy
+
+# --- Data Validation ---
+pydantic
+
+# --- NLP Metrics ---
+nltk
+rouge-score
+
+# --- Semantic Similarity ---
+sentence-transformers
+
+# --- Entity Extraction ---
+spacy
+
+# --- Testing ---
+pytest
+pytest-asyncio
+
+# --- Utilities ---
+aiofiles
