@@ -39,8 +39,9 @@
     <h2 class="text-lg font-bold text-text-primary animate-fade-in">🏆 Ranked Results</h2>
 
     {% for result in results %}
-    <div class="glass-card-strong p-6 animate-slide-up {% if result.is_winner is defined and result.is_winner %}winner-card{% endif %}"
-         style="animation-delay: {{ loop.index * 0.1 }}s;">
+    {% set anim_attr = 'style="animation-delay: ' ~ (loop.index * 0.1) ~ 's;"' %}
+    <div class="glass-card-strong p-6 animate-slide-up {{ 'winner-card' if (result.is_winner is defined and result.is_winner) else '' }}"
+         {{ anim_attr|safe }}>
 
         <!-- Header: Rank + Strategy -->
         <div class="flex items-center justify-between mb-4">
@@ -65,8 +66,8 @@
             <!-- Total Score -->
             <div class="text-right">
                 {% set total = result.scores.total_score if result.scores is defined else result.total_score|default(0) %}
-                <p class="text-3xl font-extrabold tracking-tight
-                   {% if total >= 0.6 %}text-status-success{% elif total >= 0.4 %}text-status-warning{% else %}text-status-error{% endif %}">
+                {% set score_color = 'text-status-success' if total >= 0.6 else 'text-status-warning' if total >= 0.4 else 'text-status-error' %}
+                <p class="text-3xl font-extrabold tracking-tight {{ score_color }}">
                     {{ "%.2f"|format(total) }}
                 </p>
                 <p class="text-xs text-text-dim">Total Score</p>
@@ -149,12 +150,17 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Hidden JSON data block to prevent JS linter errors -->
+<script id="results-data" type="application/json">
+{{ results|tojson|safe }}
+</script>
 <script>
     // Build the score comparison bar chart
-    const results = {{ results|tojson|safe }};
+    const resultsDataEl = document.getElementById('results-data');
+    const pageResults = resultsDataEl ? JSON.parse(resultsDataEl.textContent) : [];
 
-    if (results && results.length > 0) {
-        const labels = results.map((r, i) => {
+    if (pageResults && pageResults.length > 0) {
+        const labels = pageResults.map((r, i) => {
             const strategy = (r.prompt_strategy || r.strategy || `Prompt ${i+1}`).replace(/_/g, ' ');
             return strategy.charAt(0).toUpperCase() + strategy.slice(1);
         });
@@ -173,7 +179,7 @@
 
         const datasets = metrics.map((metric, mi) => ({
             label: metricLabels[mi],
-            data: results.map(r => {
+            data: pageResults.map(r => {
                 const scores = r.scores || {};
                 return scores[metric] || 0;
             }),

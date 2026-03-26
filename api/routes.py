@@ -67,11 +67,14 @@ async def index(request: Request):
     ollama_status = await test_connection()
     models = await list_models() if ollama_status else []
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "ollama_connected": ollama_status,
-        "models": models,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "ollama_connected": ollama_status,
+            "models": models,
+        }
+    )
 
 
 # ===========================================================================
@@ -118,12 +121,15 @@ async def evaluate(
                     })
 
     if not prompts:
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "error": "Please enter at least one prompt to evaluate.",
-            "ollama_connected": await test_connection(),
-            "models": await list_models(),
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "error": "Please enter at least one prompt to evaluate.",
+                "ollama_connected": await test_connection(),
+                "models": await list_models(),
+            }
+        )
 
     # --- Send to Ollama in parallel ---
     logger.info(f"Sending {len(prompts)} prompts to Ollama ({model})...")
@@ -134,12 +140,15 @@ async def evaluate(
     has_error = any(r.get("error") for r in responses)
     if has_error and all(r.get("error") for r in responses):
         error_msg = responses[0].get("error", "Unknown error")
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "error": f"Ollama error: {error_msg}",
-            "ollama_connected": await test_connection(),
-            "models": await list_models(),
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "error": f"Ollama error: {error_msg}",
+                "ollama_connected": await test_connection(),
+                "models": await list_models(),
+            }
+        )
 
     # --- Build prompt_results ---
     prompt_results = []
@@ -212,18 +221,21 @@ async def evaluate(
         update_result_rank(result_id, result.get("rank", 0))
 
     # --- Render results ---
-    return templates.TemplateResponse("results.html", {
-        "request": request,
-        "query": query,
-        "reference_answer": reference_answer,
-        "model": model,
-        "results": ranked,
-        "run_id": run_id,
-        "num_prompts": len(ranked),
-        "best_strategy": get_strategy_display_name(
-            ranked[0].get("strategy", "")
-        ) if ranked else "N/A",
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="results.html",
+        context={
+            "query": query,
+            "reference_answer": reference_answer,
+            "model": model,
+            "results": ranked,
+            "run_id": run_id,
+            "num_prompts": len(ranked),
+            "best_strategy": get_strategy_display_name(
+                ranked[0].get("strategy", "")
+            ) if ranked else "N/A",
+        }
+    )
 
 
 # ===========================================================================
@@ -249,12 +261,15 @@ async def optimize(
     # Load original run
     run_data = get_run_detail(run_id)
     if not run_data:
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "error": f"Run #{run_id} not found.",
-            "ollama_connected": await test_connection(),
-            "models": await list_models(),
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "error": f"Run #{run_id} not found.",
+                "ollama_connected": await test_connection(),
+                "models": await list_models(),
+            }
+        )
 
     # Find worst prompt
     worst = None
@@ -263,12 +278,15 @@ async def optimize(
         break
 
     if not worst:
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "error": "No results found to optimize.",
-            "ollama_connected": await test_connection(),
-            "models": await list_models(),
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "error": "No results found to optimize.",
+                "ollama_connected": await test_connection(),
+                "models": await list_models(),
+            }
+        )
 
     # Run optimization loop
     optimization_result = await run_optimization_loop(
@@ -302,13 +320,16 @@ async def optimize(
             total_score=improved_scores.get("total_score", 0),
         )
 
-    return templates.TemplateResponse("optimize.html", {
-        "request": request,
-        "run_id": run_id,
-        "query": run_data["query"],
-        "original": worst,
-        "optimization": optimization_result,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="optimize.html",
+        context={
+            "run_id": run_id,
+            "query": run_data["query"],
+            "original": worst,
+            "optimization": optimization_result,
+        }
+    )
 
 
 # ===========================================================================
@@ -319,10 +340,13 @@ async def optimize(
 async def history(request: Request):
     """Render the history page with all past evaluation runs."""
     runs = get_history()
-    return templates.TemplateResponse("history.html", {
-        "request": request,
-        "runs": runs,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="history.html",
+        context={
+            "runs": runs,
+        }
+    )
 
 
 # ===========================================================================
@@ -334,24 +358,30 @@ async def run_detail(request: Request, run_id: int):
     """Render detailed results for a specific evaluation run."""
     run_data = get_run_detail(run_id)
     if not run_data:
-        return templates.TemplateResponse("history.html", {
-            "request": request,
-            "runs": get_history(),
-            "error": f"Run #{run_id} not found.",
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="history.html",
+            context={
+                "runs": get_history(),
+                "error": f"Run #{run_id} not found.",
+            }
+        )
 
-    return templates.TemplateResponse("results.html", {
-        "request": request,
-        "query": run_data["query"],
-        "reference_answer": run_data.get("reference_answer", ""),
-        "model": run_data["model_used"],
-        "results": run_data["results"],
-        "run_id": run_id,
-        "num_prompts": run_data["num_prompts"],
-        "best_strategy": get_strategy_display_name(
-            run_data["results"][0].get("prompt_strategy", "")
-        ) if run_data["results"] else "N/A",
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="results.html",
+        context={
+            "query": run_data["query"],
+            "reference_answer": run_data.get("reference_answer", ""),
+            "model": run_data["model_used"],
+            "results": run_data["results"],
+            "run_id": run_id,
+            "num_prompts": run_data["num_prompts"],
+            "best_strategy": get_strategy_display_name(
+                run_data["results"][0].get("prompt_strategy", "")
+            ) if run_data["results"] else "N/A",
+        }
+    )
 
 
 # ===========================================================================
