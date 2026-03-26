@@ -320,6 +320,47 @@ async def optimize(
             total_score=improved_scores.get("total_score", 0),
         )
 
+    # --- Auto-track iteration lineage ---
+    try:
+        import uuid
+        from core.database import save_lineage_entry
+
+        lineage_id = uuid.uuid4().hex[:16]
+        orig_scores = worst.get("scores", {})
+        changes = optimization_result.get("changes", [])
+
+        # Save v1 (original)
+        save_lineage_entry(
+            lineage_id=lineage_id,
+            version_number=1,
+            prompt_text=worst["prompt_text"],
+            query=run_data["query"],
+            score_bleu=orig_scores.get("bleu", 0),
+            score_rouge=orig_scores.get("rouge", 0),
+            score_relevance=orig_scores.get("relevance", 0),
+            score_total=orig_scores.get("total_score", 0),
+            what_changed="Original prompt",
+        )
+
+        # Save v2 (improved)
+        if optimization_result.get("improved_scores"):
+            imp_scores = optimization_result["improved_scores"]
+            save_lineage_entry(
+                lineage_id=lineage_id,
+                version_number=2,
+                prompt_text=optimization_result["improved_prompt"],
+                query=run_data["query"],
+                score_bleu=imp_scores.get("bleu", 0),
+                score_rouge=imp_scores.get("rouge", 0),
+                score_relevance=imp_scores.get("relevance", 0),
+                score_total=imp_scores.get("total_score", 0),
+                what_changed="; ".join(changes) if changes else "Auto-optimized",
+            )
+
+        logger.info(f"Lineage tracked: {lineage_id} (v1→v2)")
+    except Exception as e:
+        logger.warning(f"Lineage tracking failed (non-fatal): {e}")
+
     return templates.TemplateResponse(
         request=request,
         name="optimize.html",
@@ -473,3 +514,33 @@ async def evaluate_dataset_route(request: Request, dataset_json: str = Form(...)
             request=request,
             context={"results": None, "error": f"Evaluation failed: {str(e)}"},
         )
+
+
+# ===========================================================================
+# GET /iterations — Prompt Iteration Tracker
+# ===========================================================================
+
+@router.get("/iterations", response_class=HTMLResponse)
+async def iterations_list(request: Request):
+    """Show all tracked prompt lineages."""
+    from core.database import get_all_lineages
+
+    lineages = get_all_lineages()
+    return templates.TemplateResponse(
+        name="iterations.html",
+        request=request,
+        context={"lineages": lineages, "detail": None},
+    )
+
+
+@router.get("/iterations/{lineage_id}", response_class=HTMLResponse)
+async def iterations_detail(request: Request, lineage_id: str):
+    """Show version timeline for a specific prompt lineage."""
+    from core.database import get_lineage_detail
+
+    detail = get_lineage_detail(lineage_id)
+    return templates.TemplateResponse(
+        name="iterations.html",
+        request=request,
+        context={"lineages": None, "detail": detail},
+    )

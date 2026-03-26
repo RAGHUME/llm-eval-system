@@ -145,6 +145,30 @@ class Score(Base):
         return f"<Score(id={self.id}, total={self.total_score:.2f})>"
 
 
+class PromptLineage(Base):
+    """
+    Tracks prompt evolution across optimization iterations.
+    Groups all versions of the same prompt under one lineage_id.
+    """
+
+    __tablename__ = "prompt_lineages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lineage_id = Column(String(64), nullable=False, index=True)  # Groups versions
+    version_number = Column(Integer, nullable=False, default=1)
+    prompt_text = Column(Text, nullable=False)
+    query = Column(Text, nullable=False)
+    score_bleu = Column(Float, nullable=True, default=0.0)
+    score_rouge = Column(Float, nullable=True, default=0.0)
+    score_relevance = Column(Float, nullable=True, default=0.0)
+    score_total = Column(Float, nullable=True, default=0.0)
+    what_changed = Column(Text, nullable=True, default="Original prompt")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self) -> str:
+        return f"<PromptLineage(lineage={self.lineage_id}, v{self.version_number}, score={self.score_total:.2f})>"
+
+
 # ===========================================================================
 # Database Initialization
 # ===========================================================================
@@ -397,6 +421,128 @@ def get_run_detail(run_id: int) -> Optional[dict]:
             "results": results,
             "num_prompts": len(results),
             "best_score": max((r["scores"].get("total_score", 0) for r in results), default=0),
+        }
+    finally:
+        db.close()
+
+
+# ===========================================================================
+# Prompt Lineage CRUD
+# ===========================================================================
+
+
+def save_lineage_entry(
+    lineage_id: str,
+    version_number: int,
+    prompt_text: str,
+    query: str,
+    score_bleu: float = 0.0,
+    score_rouge: float = 0.0,
+    score_relevance: float = 0.0,
+    score_total: float = 0.0,
+    what_changed: str = "Original prompt",
+) -> int:
+    """Save a single iteration entry in a prompt lineage chain."""
+    db = get_db()
+    try:
+        entry = PromptLineage(
+            lineage_id=lineage_id,
+            version_number=version_number,
+            prompt_text=prompt_text,
+            query=query,
+            score_bleu=score_bleu,
+            score_rouge=score_rouge,
+            score_relevance=score_relevance,
+            score_total=score_total,
+            what_changed=what_changed,
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        return entry.id
+    finally:
+        db.close()
+
+
+def get_all_lineages() -> list[dict]:
+    """Get all distinct prompt lineages with summary info."""
+    db = get_db()
+    try:
+        entries = (
+            db.query(PromptLineage)
+            .order_by(PromptLineage.created_at.desc())
+            .all()
+        )
+
+        # Group by lineage_id
+        lineage_map = {}
+        for e in entries:
+            lid = e.lineage_id
+            if lid not in lineage_map:
+                lineage_map[lid] = {
+                    "lineage_id": lid,
+                    "query": e.query,
+                    "versions": [],
+                    "created_at": e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else "",
+                }
+            lineage_map[lid]["versions"].append({
+                "version": e.version_number,
+                "score_total": round(e.score_total or 0, 3),
+                "prompt_preview": e.prompt_text[:80] + "..." if len(e.prompt_text) > 80 else e.prompt_text,
+            })
+
+        # Sort versions and calculate improvement
+        result = []
+        for lid, data in lineage_map.items():
+            data["versions"].sort(key=lambda v: v["version"])
+            data["total_versions"] = len(data["versions"])
+            v1_score = data["versions"][0]["score_total"]
+            vn_score = data["versions"][-1]["score_total"]
+            data["improvement"] = round(vn_score - v1_score, 3)
+            data["improvement_pct"] = round(((vn_score - v1_score) / v1_score) * 100, 1) if v1_score > 0 else 0
+            result.append(data)
+
+        return result
+    finally:
+        db.close()
+
+
+def get_lineage_detail(lineage_id: str) -> Optional[dict]:
+    """Get all versions of a specific prompt lineage."""
+    db = get_db()
+    try:
+        entries = (
+            db.query(PromptLineage)
+            .filter(PromptLineage.lineage_id == lineage_id)
+            .order_by(PromptLineage.version_number)
+            .all()
+        )
+        if not entries:
+            return None
+
+        versions = []
+        for e in entries:
+            versions.append({
+                "version": e.version_number,
+                "prompt_text": e.prompt_text,
+                "score_bleu": round(e.score_bleu or 0, 4),
+                "score_rouge": round(e.score_rouge or 0, 4),
+                "score_relevance": round(e.score_relevance or 0, 4),
+                "score_total": round(e.score_total or 0, 4),
+                "what_changed": e.what_changed or "Original prompt",
+                "created_at": e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else "",
+            })
+
+        v1 = versions[0]["score_total"]
+        vn = versions[-1]["score_total"]
+
+        return {
+            "lineage_id": lineage_id,
+            "query": entries[0].query,
+            "versions": versions,
+            "total_versions": len(versions),
+            "improvement": round(vn - v1, 3),
+            "improvement_pct": round(((vn - v1) / v1) * 100, 1) if v1 > 0 else 0,
         }
     finally:
         db.close()
