@@ -160,17 +160,20 @@
     {% endfor %}
 </section>
 
-<!-- Optimization Button -->
+<!-- Action Buttons -->
 {% if run_id is defined %}
-<div class="text-center mt-8 mb-8 animate-fade-in">
+<div class="text-center mt-8 mb-8 animate-fade-in flex justify-center gap-4 flex-wrap">
     <form method="POST" action="/optimize">
         <input type="hidden" name="run_id" value="{{ run_id }}">
         <button type="submit" class="btn-gradient text-lg px-10 py-4 inline-flex items-center gap-2">
             🔄 Improve Worst Prompt →
         </button>
     </form>
-    <p class="text-xs text-text-dim mt-2">Automatically analyze weaknesses and generate an optimized prompt</p>
+    <a href="/report/{{ run_id }}" class="btn-secondary text-lg px-10 py-4 inline-flex items-center gap-2">
+        📄 Download Report
+    </a>
 </div>
+<p class="text-xs text-text-dim mt-2 text-center">Optimize the lowest-scoring prompt or download a shareable HTML report</p>
 {% endif %}
 
 <!-- Smart Prompt Guide: What to Search Next -->

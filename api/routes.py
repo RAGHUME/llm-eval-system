@@ -657,3 +657,28 @@ async def compare_models_route(request: Request):
             request=request,
             context={"results": None, "error": f"Comparison failed: {str(e)}", "models": models},
         )
+
+
+# ===========================================================================
+# GET /report/{run_id} — Download Evaluation Report
+# ===========================================================================
+
+@router.get("/report/{run_id}")
+async def download_report(run_id: int):
+    """Generate and download a self-contained HTML evaluation report."""
+    from core.report_generator import generate_report_html
+    from fastapi.responses import Response
+
+    run_data = get_run_detail(run_id)
+    if not run_data:
+        return JSONResponse({"error": f"Run #{run_id} not found"}, status_code=404)
+
+    html_content = generate_report_html(run_data)
+
+    return Response(
+        content=html_content,
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f"attachment; filename=eval_report_run_{run_id}.html",
+        },
+    )
