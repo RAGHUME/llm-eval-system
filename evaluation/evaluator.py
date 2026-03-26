@@ -49,6 +49,7 @@ async def evaluate_single(
     response: str,
     model: str = "phi3:mini",
     skip_consistency: bool = True,  # Changed to True to massively speed up evaluations
+    skip_llm_judge: bool = False,
 ) -> dict:
     """
     Run all 7 metrics on a single prompt-response pair.
@@ -76,15 +77,23 @@ async def evaluate_single(
     if not skip_consistency:
         consistency_task = calculate_consistency(prompt_text, model, runs=2)
 
-    judge_task = llm_judge_score(query, response, model)
+    judge_task = None
+    if not skip_llm_judge:
+        judge_task = llm_judge_score(query, response, model)
 
-    if consistency_task:
+    if consistency_task and judge_task:
         consistency, judge_result = await asyncio.gather(
             consistency_task, judge_task
         )
-    else:
+    elif consistency_task:
+        consistency = await consistency_task
+        judge_result = {"average": 0.5, "justification": "Skipped for batch speed"}
+    elif judge_task:
         consistency = 0.5  # Neutral if skipped
         judge_result = await judge_task
+    else:
+        consistency = 0.5
+        judge_result = {"average": 0.5, "justification": "Skipped for batch speed"}
 
     judge_avg = judge_result.get("average", 0.5)
 

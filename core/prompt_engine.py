@@ -71,37 +71,11 @@ TEMPLATES = {
     "zero_shot": (
         "{query}"
     ),
-    "few_shot": (
-        "Here are some examples of good answers:\n\n"
-        "Example 1:\n"
-        "Q: What is machine learning?\n"
-        "A: Machine learning is a subset of artificial intelligence that "
-        "enables systems to learn and improve from experience without being "
-        "explicitly programmed. It focuses on developing algorithms that can "
-        "access data and use it to learn for themselves.\n\n"
-        "Example 2:\n"
-        "Q: What is deep learning?\n"
-        "A: Deep learning is a subset of machine learning that uses neural "
-        "networks with multiple layers (deep neural networks) to model and "
-        "understand complex patterns in data. It excels at tasks like image "
-        "recognition, natural language processing, and speech recognition.\n\n"
-        "Now answer this question in the same detailed style:\n"
-        "Q: {query}\n"
-        "A:"
-    ),
     "chain_of_thought": (
         "Think step by step and explain your reasoning clearly.\n\n"
         "Question: {query}\n\n"
         "Let's approach this systematically:\n"
         "Step 1:"
-    ),
-    "role_based": (
-        "You are a senior expert and educator with deep knowledge in this field. "
-        "Your task is to provide a comprehensive, accurate, and well-structured "
-        "answer that would be suitable for both beginners and advanced learners.\n\n"
-        "Question: {query}\n\n"
-        "Please provide a detailed answer covering key concepts, how it works, "
-        "and practical applications:"
     ),
 }
 

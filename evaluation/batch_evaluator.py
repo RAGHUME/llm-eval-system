@@ -52,7 +52,7 @@ async def evaluate_dataset(
         - per_question: list of per-question breakdown dicts
     """
     total_questions = len(dataset)
-    strategy_names = ["zero_shot", "few_shot", "chain_of_thought", "role_based"]
+    strategy_names = ["zero_shot", "chain_of_thought"]
 
     # Initialize accumulators
     strategy_data = {}
@@ -108,6 +108,7 @@ async def evaluate_dataset(
                     response=response_text,
                     model=model,
                     skip_consistency=True,
+                    skip_llm_judge=True,
                 )
 
             total = scores["total_score"]
