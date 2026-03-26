@@ -132,6 +132,33 @@
         </div>
     </div>
 
+    <!-- Smart Prompt Guide Panel -->
+    <div id="promptGuidePanel" class="glass-card p-6 border border-accent-purple/20 hidden">
+        <div class="flex items-center gap-2 mb-4">
+            <span class="text-lg">🧭</span>
+            <h3 class="text-sm font-bold text-accent-lavender">Smart Prompt Guide</h3>
+            <span id="guideLevel" class="ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold" style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;"></span>
+        </div>
+
+        <!-- Issues -->
+        <div id="guideIssues" class="space-y-2 mb-4"></div>
+
+        <!-- Strengths -->
+        <div id="guideStrengths" class="space-y-1 mb-4"></div>
+
+        <!-- Prompt Level Ladder -->
+        <div class="mt-4 pt-4" style="border-top: 1px solid rgba(210,187,255,0.1);">
+            <p class="text-xs font-semibold text-text-dim mb-3 uppercase tracking-wider">Prompt Strategy Ladder</p>
+            <div id="guideLadder" class="space-y-2"></div>
+        </div>
+
+        <!-- Next Step -->
+        <div id="guideNextStep" class="mt-4 p-3 rounded-xl hidden" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.15);">
+            <p class="text-xs font-semibold text-accent-cyan mb-1">💡 Next Level Example</p>
+            <p id="guideNextExample" class="text-xs text-text-muted italic"></p>
+        </div>
+    </div>
+
     <!-- Hidden field for template mode -->
     <input type="hidden" name="use_templates" id="use_templates_field" value="false">
 
@@ -259,6 +286,95 @@
         spinner.classList.remove('hidden');
         btn.disabled = true;
         btn.style.opacity = '0.7';
+    });
+
+    // ===== SMART PROMPT GUIDE — Live Coaching =====
+    let guideTimer = null;
+
+    function debounceGuide(textarea) {
+        clearTimeout(guideTimer);
+        guideTimer = setTimeout(() => {
+            fetchGuide(textarea.value);
+        }, 600);
+    }
+
+    async function fetchGuide(text) {
+        if (!text || text.trim().length < 2) {
+            document.getElementById('promptGuidePanel').classList.add('hidden');
+            return;
+        }
+        try {
+            const resp = await fetch('/analyze-prompt', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({prompt_text: text})
+            });
+            const data = await resp.json();
+            renderGuide(data);
+        } catch (e) {
+            console.error('Guide fetch error:', e);
+        }
+    }
+
+    function renderGuide(data) {
+        const panel = document.getElementById('promptGuidePanel');
+        panel.classList.remove('hidden');
+
+        // Level badge
+        document.getElementById('guideLevel').textContent = `Level ${data.level}: ${data.level_name}`;
+
+        // Issues
+        const issuesEl = document.getElementById('guideIssues');
+        issuesEl.innerHTML = data.issues.map(i => {
+            const color = i.severity === 'high' ? 'text-status-error' : i.severity === 'medium' ? 'text-status-warning' : 'text-text-muted';
+            const icon = i.severity === 'high' ? '🔴' : i.severity === 'medium' ? '🟡' : '🔵';
+            return `<div class="flex items-start gap-2">
+                <span class="text-xs mt-0.5">${icon}</span>
+                <div>
+                    <p class="text-xs font-medium ${color}">${i.issue}</p>
+                    <p class="text-xs text-text-dim">${i.suggestion}</p>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Strengths
+        const strengthsEl = document.getElementById('guideStrengths');
+        strengthsEl.innerHTML = data.strengths.map(s =>
+            `<div class="flex items-center gap-2"><span class="text-xs">✅</span><p class="text-xs text-status-success">${s}</p></div>`
+        ).join('');
+
+        // Ladder
+        const ladderEl = document.getElementById('guideLadder');
+        ladderEl.innerHTML = data.levels.map(l => {
+            let bg = 'rgba(52,52,64,0.4)';
+            let border = 'rgba(210,187,255,0.05)';
+            let textColor = 'text-text-dim';
+            if (l.is_current) { bg = 'rgba(124,58,237,0.2)'; border = 'rgba(124,58,237,0.4)'; textColor = 'text-accent-lavender'; }
+            else if (l.is_completed) { bg = 'rgba(6,182,212,0.08)'; border = 'rgba(6,182,212,0.2)'; textColor = 'text-status-success'; }
+            else if (l.is_next) { border = 'rgba(255,213,79,0.3)'; textColor = 'text-status-warning'; }
+            const icon = l.is_completed ? '✅' : l.is_current ? '📍' : l.is_next ? '👆' : '⬜';
+            return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs" style="background:${bg};border:1px solid ${border};">
+                <span>${icon}</span>
+                <span class="font-bold ${textColor} w-20">Lv ${l.level}: ${l.name}</span>
+                <span class="text-text-dim">${l.description}</span>
+            </div>`;
+        }).join('');
+
+        // Next step example
+        if (data.level < 5) {
+            const nextDiv = document.getElementById('guideNextStep');
+            nextDiv.classList.remove('hidden');
+            document.getElementById('guideNextExample').textContent = data.next_step_example;
+        } else {
+            document.getElementById('guideNextStep').classList.add('hidden');
+        }
+    }
+
+    // Attach debounce to all prompt textareas (current + future)
+    document.getElementById('promptContainer').addEventListener('input', function(e) {
+        if (e.target.tagName === 'TEXTAREA') {
+            debounceGuide(e.target);
+        }
     });
 </script>
 {% endblock %}

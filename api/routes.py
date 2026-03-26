@@ -400,3 +400,23 @@ async def health_check():
         "db": True,  # If we got here, DB is working
         "models": models,
     })
+
+
+# ===========================================================================
+# POST /analyze-prompt — Smart Prompt Search Guide (Real-Time)
+# ===========================================================================
+
+@router.post("/analyze-prompt", response_class=JSONResponse)
+async def analyze_prompt_route(request: Request):
+    """
+    Analyze a prompt's quality in real-time and return coaching tips.
+    Called via JS debounce (600ms) as user types in the prompt textarea.
+    Zero LLM calls — instant response.
+    """
+    from analysis.prompt_guide import analyze_prompt
+
+    body = await request.json()
+    prompt_text = body.get("prompt_text", "")
+
+    result = analyze_prompt(prompt_text)
+    return JSONResponse(result)

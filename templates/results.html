@@ -143,6 +143,31 @@
 </div>
 {% endif %}
 
+<!-- Smart Prompt Guide: What to Search Next -->
+<section class="glass-card-strong p-6 mb-8 animate-slide-up" style="animation-delay: 0.3s;">
+    <div class="flex items-center gap-2 mb-4">
+        <span class="text-lg">🧭</span>
+        <h2 class="text-lg font-bold text-text-primary">What to Search Next</h2>
+    </div>
+    <p class="text-xs text-text-dim mb-4">Based on your scores, here's how to write a better prompt next time:</p>
+    <div id="searchSuggestions" class="space-y-3"></div>
+</section>
+
+<!-- Smart Prompt Guide: Prompt Strategy Ladder -->
+<section class="glass-card p-6 mb-8 animate-slide-up" style="animation-delay: 0.4s;">
+    <div class="flex items-center gap-2 mb-4">
+        <span class="text-lg">🪜</span>
+        <h2 class="text-lg font-bold text-text-primary">Prompt Strategy Ladder</h2>
+        <span id="resultsLevelBadge" class="ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold" style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;"></span>
+    </div>
+    <p class="text-xs text-text-dim mb-4">See where your best prompt sits and what level to aim for next:</p>
+    <div id="resultsLadder" class="space-y-2"></div>
+    <div id="resultsNextStep" class="mt-4 p-3 rounded-xl hidden" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.15);">
+        <p class="text-xs font-semibold text-accent-cyan mb-1">💡 Next Level Example</p>
+        <p id="resultsNextExample" class="text-xs text-text-muted italic"></p>
+    </div>
+</section>
+
 <!-- Back to Dashboard -->
 <div class="text-center">
     <a href="/" class="btn-secondary inline-block">← Back to Dashboard</a>
@@ -214,6 +239,95 @@
                 },
             },
         });
+    }
+
+    // ===== SMART PROMPT GUIDE — Results Page Coaching =====
+    if (pageResults && pageResults.length > 0) {
+        // Find the best result (rank 1 or first)
+        const best = pageResults[0];
+        const scores = best.scores || {};
+        const promptText = best.prompt_text || best.prompt || '';
+
+        // --- Part B: "What to Search Next" suggestions ---
+        const suggestions = [];
+        if ((scores.bleu || 0) < 0.3) suggestions.push({icon:'\ud83d\udcdd',metric:'BLEU',msg:'Low word overlap with reference. Add specific keywords from the topic.',ex:"Instead of 'explain AI', try 'explain artificial neural networks and their layers'"});
+        if ((scores.rouge || 0) < 0.3) suggestions.push({icon:'\ud83d\udccb',metric:'ROUGE',msg:'Response missed key content. Ask for a structured answer.',ex:"'List the main points of [topic] with one sentence each'"});
+        if ((scores.relevance || 0) < 0.4) suggestions.push({icon:'\ud83c\udfaf',metric:'Relevance',msg:'Response was off-topic. Add context constraints.',ex:"'Focus only on [specific aspect] of [topic]'"});
+        if ((scores.entity_score || 0) < 0.4) suggestions.push({icon:'\ud83d\udd0d',metric:'Entity',msg:'Key concepts missing. Ask for specific terms.',ex:"'Make sure to cover: [term1], [term2] in your answer'"});
+        if ((scores.structure_score || 0) < 0.4) suggestions.push({icon:'\ud83d\udcd0',metric:'Structure',msg:'Response lacks organization. Specify formatting.',ex:"'Format using bullet points or numbered lists'"});
+        if (scores.hallucination_flag) suggestions.push({icon:'\u26a0\ufe0f',metric:'Hallucination',msg:"Model made things up. Add factual-only constraints.",ex:"\"Only state facts. Say 'I don't know' if unsure\""});
+        if ((scores.total_score || 0) > 0.75 && suggestions.length === 0) suggestions.push({icon:'\ud83c\udfc6',metric:'Excellent',msg:'Great prompt! Try edge cases or harder questions.',ex:'Ask the same question for a different domain or add complexity'});
+        if (suggestions.length === 0) suggestions.push({icon:'\ud83d\udca1',metric:'General',msg:'Try adding a role, format, or constraints to improve.',ex:"'You are an expert. Explain [topic] step by step in under 200 words.'"});
+
+        const sugEl = document.getElementById('searchSuggestions');
+        if (sugEl) {
+            sugEl.innerHTML = suggestions.map(s => `
+                <div class="flex items-start gap-3 p-3 rounded-xl" style="background:rgba(31,30,42,0.5);border:1px solid rgba(210,187,255,0.06);">
+                    <span class="text-lg mt-0.5">${s.icon}</span>
+                    <div>
+                        <p class="text-xs font-bold text-accent-lavender mb-0.5">${s.metric} Score Low</p>
+                        <p class="text-xs text-text-muted">${s.msg}</p>
+                        <p class="text-xs text-accent-cyan mt-1 italic">Try: ${s.ex}</p>
+                    </div>
+                </div>`).join('');
+        }
+
+        // --- Part C: Strategy Ladder on results page ---
+        const hasRole = /you are (a|an|the)|act as|as (a|an) .*(expert|specialist|teacher)/i.test(promptText);
+        const hasFormat = /bullet|numbered|step.by.step|list|table|json|markdown|sections/i.test(promptText);
+        const hasConstraint = /under \d+ words|in \d+ words|at most|maximum|keep .*(short|brief|concise)|\d+ (words|sentences)/i.test(promptText);
+        const hasGuardrail = /don'?t (make|guess)|only (state|use) fact|if (unsure|uncertain)|no speculation|accurate/i.test(promptText);
+        const wordCount = promptText.split(/\s+/).length;
+        const isLong = wordCount >= 10;
+
+        let passed = 0;
+        if (isLong) passed++;
+        if (hasRole) passed++;
+        if (hasFormat) passed++;
+        if (hasConstraint) passed++;
+        if (hasGuardrail) passed++;
+        let detectedLevel = 1;
+        if (passed <= 1) detectedLevel = 1;
+        else if (passed === 2) detectedLevel = 2;
+        else if (passed === 3) detectedLevel = 3;
+        else if (passed === 4) detectedLevel = 4;
+        else detectedLevel = 5;
+
+        const levelNames = {1:'Basic',2:'Contextual',3:'Role-Based',4:'Structured',5:'Advanced'};
+        const levelDescs = {1:'Simple question',2:'Adds context/clarification',3:'Expert role assigned',4:'Role + format + constraints',5:'CoT + few-shot + constraints'};
+        const levelExamples = {
+            2:'Explain {topic} in simple terms with examples',
+            3:'You are an expert. Explain {topic} covering X, Y, Z',
+            4:'You are an expert. Explain {topic} step by step. Cover: definition, how it works, examples. Under 200 words.',
+            5:"You are an expert. Think step by step. Define, explain mechanism, give 2 examples. Bullet points. Under 200 words. Say I don't know if unsure."
+        };
+
+        const badgeEl = document.getElementById('resultsLevelBadge');
+        if (badgeEl) badgeEl.textContent = 'Level ' + detectedLevel + ': ' + levelNames[detectedLevel];
+
+        const ladderEl = document.getElementById('resultsLadder');
+        if (ladderEl) {
+            ladderEl.innerHTML = [1,2,3,4,5].map(function(l) {
+                let bg = 'rgba(52,52,64,0.4)', border = 'rgba(210,187,255,0.05)', tc = 'text-text-dim';
+                const isCurrent = l === detectedLevel, isCompleted = l < detectedLevel, isNext = l === detectedLevel + 1;
+                if (isCurrent) { bg='rgba(124,58,237,0.2)'; border='rgba(124,58,237,0.4)'; tc='text-accent-lavender'; }
+                else if (isCompleted) { bg='rgba(6,182,212,0.08)'; border='rgba(6,182,212,0.2)'; tc='text-status-success'; }
+                else if (isNext) { border='rgba(255,213,79,0.3)'; tc='text-status-warning'; }
+                const icon = isCompleted ? '\u2705' : isCurrent ? '\ud83d\udccd' : isNext ? '\ud83d\udc46' : '\u2b1c';
+                return '<div class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs" style="background:'+bg+';border:1px solid '+border+';">' +
+                    '<span>'+icon+'</span>' +
+                    '<span class="font-bold '+tc+' w-24">Lv '+l+': '+levelNames[l]+'</span>' +
+                    '<span class="text-text-dim">'+levelDescs[l]+'</span>' +
+                '</div>';
+            }).join('');
+        }
+
+        if (detectedLevel < 5) {
+            const nextStepEl = document.getElementById('resultsNextStep');
+            if (nextStepEl) nextStepEl.classList.remove('hidden');
+            const nextExEl = document.getElementById('resultsNextExample');
+            if (nextExEl) nextExEl.textContent = levelExamples[detectedLevel + 1] || '';
+        }
     }
 </script>
 {% endblock %}
