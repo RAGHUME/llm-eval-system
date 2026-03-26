@@ -82,6 +82,22 @@ def _parse_judge_response(raw_text: str) -> dict:
             except (json.JSONDecodeError, IndexError):
                 continue
 
+    # Fallback: Aggressively extract numeric scores if JSON is malformed
+    acc_match = re.search(r'"?accuracy"?\s*:\s*([\d.]+)', raw_text, re.IGNORECASE)
+    clar_match = re.search(r'"?clarity"?\s*:\s*([\d.]+)', raw_text, re.IGNORECASE)
+    comp_match = re.search(r'"?completeness"?\s*:\s*([\d.]+)', raw_text, re.IGNORECASE)
+
+    if acc_match and clar_match and comp_match:
+        try:
+            return {
+                "accuracy": float(acc_match.group(1)),
+                "clarity": float(clar_match.group(1)),
+                "completeness": float(comp_match.group(1)),
+                "justification": "Regex extracted from malformed LLM response",
+            }
+        except ValueError:
+            pass
+
     logger.warning(f"Failed to parse judge response: {raw_text[:200]}")
     return default
 
