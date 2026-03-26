@@ -1,188 +1,100 @@
-# 🧪 LLM Evaluation & Prompt Optimization System
-
-> **Evaluate. Compare. Optimize.** — Test your LLM prompts against 7 advanced metrics and improve them automatically.
-
-A production-grade web application for evaluating Large Language Model (LLM) responses across multiple prompts, comparing outputs using measurable criteria, and improving prompt quality through systematic iteration.
+<div align="center">
+  
+  # 🧪 LLM Evaluation & Prompt Optimization System
+  
+  **Evaluate. Compare. Optimize.**<br>
+  *A production-grade, 100% local toolchain to test LLM prompts against 7 advanced NLP metrics.*
+</div>
 
 ---
 
 ## 🎯 Problem Statement
+When developing LLM applications, **prompt engineering is often guesswork**. Developers lack a systematic way to:
+1. **Objectively compare** different prompt engineering strategies.
+2. **Quantifiably measure** response quality using hard NLP metrics.
+3. **Automatically improve** prompts based on strict data analysis.
 
-When working with LLMs, **prompt quality dramatically affects output quality** — but there's no easy way to:
-- Objectively compare different prompt strategies
-- Measure response quality with multiple metrics
-- Systematically improve prompts based on data
+**This system solves all three problems.** By combining an async FastAPI backend, an Ollama local LLM engine, and a suite of NLP scoring algorithms (BLEU, ROUGE, Cosine Similarity), it provides a complete framework for structured prompt optimization.
 
-This system solves all three problems with a **100% local, open-source** toolchain.
+## ✨ Key Features
+- **🚀 100% Local Inference**: Runs locally via Ollama (default: `phi3:mini`) with zero API costs.
+- **🚥 7-Metric Evaluation Engine**: Scores responses against BLEU, ROUGE-L, Semantic Relevance, Entity Coverage, Formatting Structure, Run-to-Run Consistency, and an LLM-as-a-Judge.
+- **🤖 Automated Prompt Optimization**: Identifies weaknesses (e.g., hallucination, missing entities, verbosity) and automatically generates an improved prompt strategy.
+- **⚡ Asynchronous Architecture**: Utilizes `asyncio.Semaphore` and `httpx` to handle parallel prompt evaluations without deadlocking the open-source LLM engine.
+- **🎛️ "Lumina Eval" UI**: A premium, responsive dashboard built with Jinja2, Tailwind CSS (glassmorphism design), and Chart.js for data visualization.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ System Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Web Browser (UI)                      │
-│         Tailwind CSS + Chart.js + Jinja2 Templates       │
-└─────────────────────┬───────────────────────────────────┘
-                      │ HTTP
-┌─────────────────────▼───────────────────────────────────┐
-│                  FastAPI Server                          │
-│   ┌──────────┐  ┌──────────┐  ┌────────────────────┐   │
-│   │  Routes   │  │ Evaluator│  │    Optimizer        │   │
-│   └────┬─────┘  └────┬─────┘  └────────┬───────────┘   │
-│        │              │                  │               │
-│   ┌────▼─────┐  ┌────▼─────┐  ┌────────▼───────────┐   │
-│   │  Prompt   │  │ 7 Metric │  │ Weakness Analyzer   │   │
-│   │  Engine   │  │ Scorers  │  │ + Auto-Improver     │   │
-│   └────┬─────┘  └──────────┘  └─────────────────────┘   │
-│        │                                                 │
-│   ┌────▼──────────────────┐  ┌──────────────────────┐   │
-│   │  Ollama Interface     │  │   SQLite Database     │   │
-│   │  (Async Parallel)     │  │   (SQLAlchemy ORM)    │   │
-│   └────┬──────────────────┘  └──────────────────────┘   │
-└────────┼────────────────────────────────────────────────┘
-         │ HTTP (localhost:11434)
-┌────────▼────────────────────────────────────────────────┐
-│              Ollama (Local LLM Runner)                    │
-│              Model: phi3:mini (2.3GB RAM)                 │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    A[Web Browser UI<br>Tailwind + Chart.js] -->|HTTP POST Form| B(FastAPI Server)
+    B -->|Generates Variants| C[Prompt Engine]
+    C -->|Async HTTP Array| D((Ollama Interface<br>Semaphore=1))
+    D -->|Local Inference| F[phi3:mini LLM]
+    D -->|Responses| E[Evaluation Pipeline]
+    E -->|N-Gram & Embeddings| G[7 NLP Scorer Metrics]
+    E -->|Error Analysis| H[Optimization Engine]
+    E -->|SQLAlchemy ORM| I[(SQLite DB)]
 ```
 
----
-
-## ⚡ Tech Stack
-
-| Component        | Technology                          | Why                                    |
-|------------------|-------------------------------------|----------------------------------------|
-| Backend          | FastAPI + Uvicorn                   | Modern async Python framework          |
-| Frontend         | Jinja2 + Tailwind CSS + Chart.js    | Server-rendered, beautiful dashboards  |
-| LLM Runner       | Ollama (phi3:mini)                  | Local, free, fits 8GB RAM             |
-| Database         | SQLite + SQLAlchemy                 | Zero setup, reliable storage           |
-| Async HTTP       | httpx                               | Non-blocking Ollama calls              |
-| NLP Metrics      | nltk, rouge-score                   | BLEU + ROUGE scoring                   |
-| Semantic Scoring | sentence-transformers (MiniLM-L6)   | Cosine similarity, small model         |
-| Entity Analysis  | nltk (POS tagging)                  | Keyword extraction                     |
+## 🛠️ Technology Stack
+| Layer | Technology | Justification |
+|-------|------------|---------------|
+| **Backend** | Python, FastAPI, Uvicorn | High-performance async request handling |
+| **LLM Engine** | Ollama | Secure, cost-free local open-weight inference |
+| **NLP/ML** | NLTK, rouge-score, sentence-transformers | Industry standard metric calculation |
+| **Database** | SQLite, SQLAlchemy | Lightweight embedded persistence with ORM reliability |
+| **Frontend** | HTML5, Tailwind CSS, Jinja2, Chart.js | SSR architecture with zero heavy JS framework hydration |
 
 ---
 
-## 📦 Installation
+## 📦 Run Locally
 
-### Prerequisites
+### 1. Prerequisites
 - Python 3.10+
-- [Ollama](https://ollama.ai) installed and running
-- 8GB RAM minimum
+- [Ollama](https://ollama.ai) installed and running in the background.
 
-### Steps
-
+### 2. Setup
 ```bash
-# 1. Clone the repository
-git clone https://github.com/yourusername/llm-eval-system.git
+# Clone the repository
+git clone https://github.com/RAGHUME/llm-eval-system.git
 cd llm-eval-system
 
-# 2. Create virtual environment
+# Create virtual environment and install dependencies
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
-
-# 3. Install dependencies
+.\venv\Scripts\activate
 pip install -r requirements.txt
 
-# 4. Download NLTK data
+# Download required NLTK tokenizers
 python -c "import nltk; nltk.download('punkt_tab'); nltk.download('averaged_perceptron_tagger_eng'); nltk.download('stopwords')"
 
-# 5. Pull the LLM model
+# Pull the lightweight model (2.3GB)
 ollama pull phi3:mini
-
-# 6. Start the application
-uvicorn main:app --reload --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+### 3. Start the Server
+```bash
+python -m uvicorn main:app --reload --port 8000
+```
+Open **[http://localhost:8000](http://localhost:8000)** in your browser!
 
 ---
 
-## 📊 Evaluation Metrics
-
-| #  | Metric       | Score Range | What It Measures                              |
-|----|-------------|-------------|-----------------------------------------------|
-| 1  | BLEU        | 0.0 – 1.0  | N-gram overlap with reference answer          |
-| 2  | ROUGE-L     | 0.0 – 1.0  | Longest common subsequence similarity         |
-| 3  | Relevance   | 0.0 – 1.0  | Semantic similarity via embeddings            |
-| 4  | Entity      | 0.0 – 1.0  | Key concept coverage                          |
-| 5  | Structure   | 0.0 – 1.0  | Response formatting quality                   |
-| 6  | Consistency | 0.0 – 1.0  | Stability across multiple runs                |
-| 7  | LLM Judge   | 0.0 – 1.0  | AI-evaluated accuracy, clarity, completeness  |
-
-### Scoring Formula
-```
-total = 0.10×BLEU + 0.10×ROUGE + 0.20×Relevance + 0.15×Entity
-      + 0.10×Structure + 0.10×Consistency + 0.25×LLM_Judge
-```
-
----
-
-## 🛠️ API Endpoints
-
-| Method | Endpoint           | Description                    |
-|--------|-------------------|--------------------------------|
-| GET    | `/`               | Main evaluation dashboard      |
-| POST   | `/evaluate`       | Run evaluation on prompts      |
-| POST   | `/optimize`       | Optimize worst-performing prompt|
-| GET    | `/history`        | View all past evaluation runs  |
-| GET    | `/history/{id}`   | View specific run details      |
-| GET    | `/health`         | System health check            |
-
----
-
-## 📁 Project Structure
-
-```
+## 📂 Project Structure
+```text
 llm-eval-system/
-├── main.py                     # FastAPI app entry point
-├── requirements.txt            # Pinned dependencies
-├── .gitignore
-├── README.md
-├── core/                       # Core engine modules
-│   ├── database.py             # SQLite schema + CRUD
-│   ├── ollama_interface.py     # Async Ollama communication
-│   └── prompt_engine.py        # Prompt template strategies
-├── evaluation/                 # Scoring pipeline
-│   ├── evaluator.py            # Combined evaluator
-│   ├── ranker.py               # Rank by total score
-│   └── metrics/                # Individual metric scorers
-│       ├── bleu_score.py
-│       ├── rouge_score.py
-│       ├── relevance_score.py
-│       ├── entity_score.py
-│       ├── structure_score.py
-│       ├── consistency_score.py
-│       └── llm_judge.py
-├── analysis/
-│   └── error_analyzer.py       # Error detection
-├── optimization/
-│   └── optimizer.py            # Prompt improvement engine
-├── api/
-│   └── routes.py               # FastAPI route handlers
-├── templates/                  # Jinja2 HTML pages
-│   ├── base.html
-│   ├── index.html
-│   ├── results.html
-│   ├── history.html
-│   └── optimize.html
-├── static/                     # Static assets
-├── data/                       # SQLite database (auto-created)
-├── tests/                      # Unit tests
-└── docs/                       # Documentation
-    ├── RESEARCH.md
-    └── ITERATIONS.md
+├── core/                  # Database models, LLM connection, and prompt generation
+├── evaluation/metrics/    # 7 independent scoring algorithms (BLEU, ROUGE, Relevance, etc.)
+├── analysis/              # Error detection and hallucination flagging
+├── optimization/          # Automated iterative prompt improvement loop
+├── api/                   # FastAPI route handlers (Main, Evaluate, Optimize, History)
+├── templates/             # Server-side rendered Jinja2 templates (Lumina UI)
+└── main.py                # Application entry point
 ```
-
----
 
 ## 🚀 Status
+✅ **Production Ready** — Evaluator, auto-optimizer, and UI are fully built, thoroughly linted, and verified.
 
-🔨 **Under active development** — Building core modules.
-
----
-
-*Built with ❤️ using 100% open-source tools. No paid APIs required.*
+*Built by [RAGHUME](https://github.com/RAGHUME) to demonstrate advanced GenAI toolchain engineering.*

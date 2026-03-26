@@ -63,10 +63,8 @@
                     </td>
                     <td class="py-4 px-4 text-center">
                         {% set score = run.best_score %}
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold
-                              {% if score >= 0.6 %}bg-status-success/15 text-status-success
-                              {% elif score >= 0.4 %}bg-status-warning/15 text-status-warning
-                              {% else %}bg-status-error/15 text-status-error{% endif %}">
+                        {% set badge_class = 'bg-status-success/15 text-status-success' if score >= 0.6 else 'bg-status-warning/15 text-status-warning' if score >= 0.4 else 'bg-status-error/15 text-status-error' %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold {{ badge_class }}">
                             {{ "%.3f"|format(score) }}
                         </span>
                     </td>
@@ -93,8 +91,13 @@
 
 {% block scripts %}
 {% if runs|length > 1 %}
+<!-- Hidden JSON data block to prevent JS linter errors -->
+<script id="runs-data" type="application/json">
+{{ runs|tojson|safe }}
+</script>
 <script>
-    const runs = {{ runs|tojson|safe }};
+    const runsDataEl = document.getElementById('runs-data');
+    const runs = runsDataEl ? JSON.parse(runsDataEl.textContent) : [];
     const sortedRuns = [...runs].reverse(); // chronological order
 
     const ctx = document.getElementById('trendChart').getContext('2d');
