@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Evaluation Results — LLM Eval System{% endblock %}
+
+{% block content %}
+<!-- Summary Bar -->
+<section class="glass-card-strong p-6 mb-8 animate-fade-in">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="label-tech mb-1">Query Evaluated</p>
+            <h1 class="text-xl font-bold text-text-primary">{{ query[:120] }}{% if query|length > 120 %}...{% endif %}</h1>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-center">
+                <p class="text-2xl font-extrabold text-accent-lavender">{{ num_prompts }}</p>
+                <p class="text-xs text-text-dim">Prompts</p>
+            </div>
+            <div class="text-center">
+                <p class="text-2xl font-extrabold text-status-success">{{ best_strategy }}</p>
+                <p class="text-xs text-text-dim">Best Strategy</p>
+            </div>
+            <div class="text-center">
+                <p class="text-2xl font-extrabold text-accent-cyan">{{ model }}</p>
+                <p class="text-xs text-text-dim">Model</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Score Comparison Chart -->
+<section class="glass-card p-6 mb-8 animate-slide-up">
+    <h2 class="text-lg font-bold text-text-primary mb-4">📊 Score Comparison</h2>
+    <div style="height: 320px;">
+        <canvas id="scoreChart"></canvas>
+    </div>
+</section>
+
+<!-- Response Cards -->
+<section class="space-y-6 mb-8">
+    <h2 class="text-lg font-bold text-text-primary animate-fade-in">🏆 Ranked Results</h2>
+
+    {% for result in results %}
+    <div class="glass-card-strong p-6 animate-slide-up {% if result.is_winner is defined and result.is_winner %}winner-card{% endif %}"
+         style="animation-delay: {{ loop.index * 0.1 }}s;">
+
+        <!-- Header: Rank + Strategy -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <!-- Rank Badge -->
+                <span class="text-2xl">
+                    {% if result.rank == 1 %}🥇{% elif result.rank == 2 %}🥈{% elif result.rank == 3 %}🥉{% else %}#{{ result.rank }}{% endif %}
+                </span>
+                <div>
+                    <h3 class="text-base font-semibold text-text-primary">
+                        {{ result.prompt_strategy|default('Custom', true)|replace('_', ' ')|title }}
+                    </h3>
+                    {% if result.is_winner is defined and result.is_winner %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                          style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">
+                        ⭐ Best Prompt
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Total Score -->
+            <div class="text-right">
+                {% set total = result.scores.total_score if result.scores is defined else result.total_score|default(0) %}
+                <p class="text-3xl font-extrabold tracking-tight
+                   {% if total >= 0.6 %}text-status-success{% elif total >= 0.4 %}text-status-warning{% else %}text-status-error{% endif %}">
+                    {{ "%.2f"|format(total) }}
+                </p>
+                <p class="text-xs text-text-dim">Total Score</p>
+            </div>
+        </div>
+
+        <!-- Prompt Text -->
+        <div class="mb-4 p-4 rounded-xl" style="background: #0d0d18;">
+            <p class="label-tech mb-1">Prompt Used</p>
+            <p class="text-sm text-text-muted">{{ result.prompt_text[:300] }}{% if result.prompt_text|length > 300 %}...{% endif %}</p>
+        </div>
+
+        <!-- LLM Response -->
+        <div class="mb-4 p-4 rounded-xl" style="background: #1b1a26;">
+            <p class="label-tech mb-1">LLM Response</p>
+            <p class="text-sm text-text-primary whitespace-pre-line leading-relaxed">{{ result.llm_response|default(result.response, true)|default('No response', true) }}</p>
+        </div>
+
+        <!-- Score Breakdown Table -->
+        <div class="overflow-x-auto mb-4">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-text-dim">
+                        <th class="text-left py-2 px-3">BLEU</th>
+                        <th class="text-left py-2 px-3">ROUGE</th>
+                        <th class="text-left py-2 px-3">Relevance</th>
+                        <th class="text-left py-2 px-3">Entity</th>
+                        <th class="text-left py-2 px-3">Structure</th>
+                        <th class="text-left py-2 px-3">Consistency</th>
+                        <th class="text-left py-2 px-3">Judge</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set s = result.scores if result.scores is defined else {} %}
+                    <tr class="text-text-primary font-medium">
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.bleu|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.rouge|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.relevance|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.entity_score|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.structure_score|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.consistency_score|default(0)) }}</td>
+                        <td class="py-2 px-3">{{ "%.3f"|format(s.llm_judge_score|default(0)) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Error Flags -->
+        {% set errors = result.error_flags if result.error_flags is defined else [] %}
+        {% if errors|length > 0 %}
+        <div class="flex flex-wrap gap-2">
+            {% for err in errors %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-status-error/10 text-status-error border border-status-error/20">
+                {{ err }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</section>
+
+<!-- Optimization Button -->
+{% if run_id is defined %}
+<div class="text-center mt-8 mb-8 animate-fade-in">
+    <form method="POST" action="/optimize">
+        <input type="hidden" name="run_id" value="{{ run_id }}">
+        <button type="submit" class="btn-gradient text-lg px-10 py-4 inline-flex items-center gap-2">
+            🔄 Improve Worst Prompt →
+        </button>
+    </form>
+    <p class="text-xs text-text-dim mt-2">Automatically analyze weaknesses and generate an optimized prompt</p>
+</div>
+{% endif %}
+
+<!-- Back to Dashboard -->
+<div class="text-center">
+    <a href="/" class="btn-secondary inline-block">← Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Build the score comparison bar chart
+    const results = {{ results|tojson|safe }};
+
+    if (results && results.length > 0) {
+        const labels = results.map((r, i) => {
+            const strategy = (r.prompt_strategy || r.strategy || `Prompt ${i+1}`).replace(/_/g, ' ');
+            return strategy.charAt(0).toUpperCase() + strategy.slice(1);
+        });
+
+        const metrics = ['bleu', 'rouge', 'relevance', 'entity_score', 'structure_score', 'consistency_score', 'llm_judge_score'];
+        const metricLabels = ['BLEU', 'ROUGE', 'Relevance', 'Entity', 'Structure', 'Consistency', 'Judge'];
+        const colors = [
+            'rgba(124, 58, 237, 0.8)',    // purple
+            'rgba(167, 139, 250, 0.8)',   // light purple
+            'rgba(6, 182, 212, 0.8)',     // cyan
+            'rgba(76, 215, 246, 0.8)',    // light cyan
+            'rgba(210, 187, 255, 0.8)',   // lavender
+            'rgba(196, 181, 253, 0.6)',   // muted lavender
+            'rgba(56, 189, 248, 0.8)',    // blue
+        ];
+
+        const datasets = metrics.map((metric, mi) => ({
+            label: metricLabels[mi],
+            data: results.map(r => {
+                const scores = r.scores || {};
+                return scores[metric] || 0;
+            }),
+            backgroundColor: colors[mi],
+            borderColor: colors[mi].replace('0.8', '1').replace('0.6', '1'),
+            borderWidth: 1,
+            borderRadius: 4,
+        }));
+
+        const ctx = document.getElementById('scoreChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#ccc3d8', font: { family: 'Inter', size: 11 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#958da1', font: { family: 'Inter', size: 11 } },
+                        grid: { color: 'rgba(149, 141, 161, 0.1)' },
+                    },
+                    y: {
+                        min: 0, max: 1,
+                        ticks: { color: '#958da1', font: { family: 'Inter', size: 11 } },
+                        grid: { color: 'rgba(149, 141, 161, 0.1)' },
+                    },
+                },
+            },
+        });
+    }
+</script>
+{% endblock %}

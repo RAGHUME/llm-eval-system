@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LLM Evaluation & Prompt Optimization System — Evaluate, compare, and optimize your LLM prompts with 7 advanced metrics.">
+    <title>{% block title %}LLM Eval System{% endblock %}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: {
+                            base: '#12121d',
+                            low: '#1b1a26',
+                            card: '#1f1e2a',
+                            high: '#292935',
+                            highest: '#343440',
+                            lowest: '#0d0d18',
+                        },
+                        accent: {
+                            purple: '#7c3aed',
+                            cyan: '#06b6d4',
+                            lavender: '#d2bbff',
+                        },
+                        text: {
+                            primary: '#e3e0f1',
+                            muted: '#ccc3d8',
+                            dim: '#958da1',
+                        },
+                        status: {
+                            success: '#4cd7f6',
+                            error: '#ffb4ab',
+                            warning: '#ffd54f',
+                        },
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+                        'fade-in': 'fadeIn 0.6s ease-out',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '1', boxShadow: '0 0 8px rgba(124,58,237,0.3)' },
+                            '50%': { opacity: '0.8', boxShadow: '0 0 20px rgba(124,58,237,0.6)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <!-- Google Fonts — Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body { background: #12121d; color: #e3e0f1; min-height: 100vh; }
+
+        /* Glassmorphism card */
+        .glass-card {
+            background: rgba(31, 30, 42, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(210, 187, 255, 0.08);
+            border-radius: 16px;
+        }
+        .glass-card-strong {
+            background: rgba(31, 30, 42, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(210, 187, 255, 0.12);
+            border-radius: 20px;
+        }
+
+        /* Gradient accent button */
+        .btn-gradient {
+            background: linear-gradient(135deg, #7c3aed, #03b5d3);
+            color: white;
+            font-weight: 600;
+            border-radius: 12px;
+            padding: 12px 28px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-gradient:hover {
+            box-shadow: 0 0 24px rgba(124, 58, 237, 0.4), 0 0 48px rgba(3, 181, 211, 0.2);
+            transform: translateY(-1px);
+        }
+        .btn-gradient:active { transform: translateY(0); }
+
+        /* Secondary button */
+        .btn-secondary {
+            background: rgba(52, 52, 64, 0.6);
+            color: #ccc3d8;
+            font-weight: 500;
+            border-radius: 10px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(210, 187, 255, 0.1);
+            cursor: pointer;
+        }
+        .btn-secondary:hover {
+            background: rgba(52, 52, 64, 0.9);
+            border-color: rgba(210, 187, 255, 0.2);
+        }
+
+        /* Recessed input well */
+        .input-well {
+            background: #0d0d18;
+            border: 1px solid rgba(149, 141, 161, 0.15);
+            border-radius: 12px;
+            color: #e3e0f1;
+            transition: all 0.3s ease;
+        }
+        .input-well:focus {
+            outline: none;
+            border-color: rgba(76, 215, 246, 0.3);
+            box-shadow: 0 0 0 3px rgba(76, 215, 246, 0.08);
+        }
+
+        /* Score badge colors */
+        .score-high { color: #4cd7f6; }
+        .score-mid { color: #ffd54f; }
+        .score-low { color: #ffb4ab; }
+
+        /* Subtle glow effect */
+        .glow-purple { box-shadow: 0 0 30px rgba(124, 58, 237, 0.15); }
+        .glow-cyan { box-shadow: 0 0 30px rgba(6, 182, 212, 0.15); }
+
+        /* Winner card */
+        .winner-card {
+            border: 1px solid rgba(124, 58, 237, 0.4);
+            box-shadow: 0 0 40px rgba(124, 58, 237, 0.12);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #12121d; }
+        ::-webkit-scrollbar-thumb { background: #343440; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a4455; }
+
+        /* Status pulse animation */
+        .status-pulse {
+            animation: statusPulse 2s infinite;
+        }
+        @keyframes statusPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(76, 215, 246, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(76, 215, 246, 0); }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(210, 187, 255, 0.1);
+            border-top: 3px solid #7c3aed;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Label style */
+        .label-tech {
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #4cd7f6;
+        }
+    </style>
+</head>
+<body class="dark">
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 glass-card-strong" style="border-radius: 0; border-left: none; border-right: none; border-top: none;">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="/" class="flex items-center gap-3 group">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent-purple to-accent-cyan flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                    </svg>
+                </div>
+                <span class="text-lg font-bold text-text-primary group-hover:text-accent-lavender transition-colors">
+                    LLM Eval System
+                </span>
+            </a>
+
+            <!-- Nav Links -->
+            <div class="flex items-center gap-8">
+                <a href="/" class="text-sm font-medium text-text-muted hover:text-accent-lavender transition-colors">Home</a>
+                <a href="/history" class="text-sm font-medium text-text-muted hover:text-accent-lavender transition-colors">History</a>
+                <a href="/health" class="text-sm font-medium text-text-muted hover:text-accent-lavender transition-colors">API</a>
+            </div>
+
+            <!-- Status indicator -->
+            <div class="flex items-center gap-2">
+                {% block status_indicator %}
+                <div class="w-2.5 h-2.5 rounded-full {% if ollama_connected is defined and ollama_connected %}bg-status-success status-pulse{% else %}bg-status-error{% endif %}"></div>
+                <span class="text-xs font-medium text-text-dim">
+                    {% if ollama_connected is defined and ollama_connected %}Ollama Connected{% else %}Ollama Offline{% endif %}
+                </span>
+                {% endblock %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-16 py-8 text-center">
+        <p class="text-xs text-text-dim">
+            Built with ❤️ using 100% open-source tools &middot; No paid APIs required
+        </p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

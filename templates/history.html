@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}History — LLM Eval System{% endblock %}
+
+{% block content %}
+<section class="animate-fade-in">
+    <h1 class="text-3xl font-extrabold text-text-primary mb-2">📜 Evaluation History</h1>
+    <p class="text-text-muted mb-8">Track your prompt evaluation runs and performance over time.</p>
+</section>
+
+<!-- Error -->
+{% if error %}
+<div class="mb-6 px-5 py-4 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error text-sm">
+    ⚠️ {{ error }}
+</div>
+{% endif %}
+
+<!-- Performance Trend Chart -->
+{% if runs|length > 1 %}
+<section class="glass-card p-6 mb-8 animate-slide-up">
+    <h2 class="text-lg font-bold text-text-primary mb-4">📈 Score Trend</h2>
+    <div style="height: 240px;">
+        <canvas id="trendChart"></canvas>
+    </div>
+</section>
+{% endif %}
+
+<!-- History Table -->
+<section class="glass-card-strong p-6 animate-slide-up" style="animation-delay: 0.15s;">
+    {% if runs|length == 0 %}
+    <div class="text-center py-16">
+        <p class="text-4xl mb-4">🧪</p>
+        <h3 class="text-lg font-semibold text-text-primary mb-2">No evaluations yet</h3>
+        <p class="text-text-muted text-sm mb-6">Run your first evaluation to see results here.</p>
+        <a href="/" class="btn-gradient px-6 py-3 text-sm">Start Evaluating →</a>
+    </div>
+    {% else %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-text-dim text-xs uppercase tracking-wider border-b border-surface-highest/50">
+                    <th class="text-left py-3 px-4">#</th>
+                    <th class="text-left py-3 px-4">Date</th>
+                    <th class="text-left py-3 px-4">Query</th>
+                    <th class="text-center py-3 px-4">Prompts</th>
+                    <th class="text-center py-3 px-4">Best Score</th>
+                    <th class="text-center py-3 px-4">Model</th>
+                    <th class="text-right py-3 px-4">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr class="border-b border-surface-highest/20 hover:bg-surface-high/30 transition-colors cursor-pointer group"
+                    onclick="window.location.href='/history/{{ run.id }}'">
+                    <td class="py-4 px-4 text-text-dim">{{ run.id }}</td>
+                    <td class="py-4 px-4 text-text-muted text-xs">{{ run.created_at }}</td>
+                    <td class="py-4 px-4 text-text-primary font-medium max-w-xs truncate">
+                        {{ run.query[:80] }}{% if run.query|length > 80 %}...{% endif %}
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold bg-accent-purple/20 text-accent-lavender">
+                            {{ run.num_prompts }}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        {% set score = run.best_score %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold
+                              {% if score >= 0.6 %}bg-status-success/15 text-status-success
+                              {% elif score >= 0.4 %}bg-status-warning/15 text-status-warning
+                              {% else %}bg-status-error/15 text-status-error{% endif %}">
+                            {{ "%.3f"|format(score) }}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-center text-text-dim text-xs">{{ run.model_used }}</td>
+                    <td class="py-4 px-4 text-right">
+                        <a href="/history/{{ run.id }}"
+                           class="text-accent-cyan hover:text-accent-lavender text-xs font-medium transition-colors opacity-0 group-hover:opacity-100">
+                            View →
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Back -->
+<div class="text-center mt-8">
+    <a href="/" class="btn-secondary inline-block">← Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if runs|length > 1 %}
+<script>
+    const runs = {{ runs|tojson|safe }};
+    const sortedRuns = [...runs].reverse(); // chronological order
+
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+    gradient.addColorStop(0, 'rgba(124, 58, 237, 0.8)');
+    gradient.addColorStop(1, 'rgba(6, 182, 212, 0.8)');
+
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+    bgGradient.addColorStop(0, 'rgba(124, 58, 237, 0.15)');
+    bgGradient.addColorStop(1, 'rgba(6, 182, 212, 0.02)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedRuns.map(r => r.created_at || `Run #${r.id}`),
+            datasets: [{
+                label: 'Best Score',
+                data: sortedRuns.map(r => r.best_score),
+                borderColor: gradient,
+                backgroundColor: bgGradient,
+                borderWidth: 2.5,
+                pointBackgroundColor: '#7c3aed',
+                pointBorderColor: '#d2bbff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                fill: true,
+                tension: 0.3,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#ccc3d8', font: { family: 'Inter', size: 11 } } },
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#958da1', font: { family: 'Inter', size: 10 }, maxRotation: 30 },
+                    grid: { color: 'rgba(149, 141, 161, 0.08)' },
+                },
+                y: {
+                    min: 0, max: 1,
+                    ticks: { color: '#958da1', font: { family: 'Inter', size: 11 } },
+                    grid: { color: 'rgba(149, 141, 161, 0.08)' },
+                },
+            },
+        },
+    });
+</script>
+{% endif %}
+{% endblock %}

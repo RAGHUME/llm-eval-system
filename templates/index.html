@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}LLM Eval System — Dashboard{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative mb-12 animate-fade-in">
+    <div class="relative overflow-hidden rounded-2xl p-10"
+         style="background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(3,181,211,0.08), rgba(18,18,29,0.95));">
+        <!-- Glow orbs -->
+        <div class="absolute -top-20 -left-20 w-60 h-60 rounded-full opacity-20"
+             style="background: radial-gradient(circle, #7c3aed 0%, transparent 70%);"></div>
+        <div class="absolute -bottom-20 -right-20 w-60 h-60 rounded-full opacity-15"
+             style="background: radial-gradient(circle, #06b6d4 0%, transparent 70%);"></div>
+
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-3"
+            style="background: linear-gradient(135deg, #e3e0f1, #d2bbff);
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Evaluate. Compare. Optimize.
+        </h1>
+        <p class="text-text-muted text-lg max-w-2xl">
+            Test your LLM prompts against 7 advanced metrics and improve them automatically.
+            100% local, 100% open-source.
+        </p>
+    </div>
+</section>
+
+<!-- Error Alert -->
+{% if error %}
+<div class="mb-6 px-5 py-4 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error text-sm animate-fade-in">
+    ⚠️ {{ error }}
+</div>
+{% endif %}
+
+<!-- Main Evaluation Form -->
+<form id="evalForm" method="POST" action="/evaluate" class="space-y-8 animate-slide-up">
+    <div class="glass-card-strong p-8 space-y-6 glow-purple">
+        <!-- Query Input -->
+        <div>
+            <label class="label-tech mb-2 block">Your Question or Topic</label>
+            <textarea name="query" id="query" rows="3" required
+                      class="input-well w-full px-5 py-4 text-base resize-none"
+                      placeholder="e.g., How does BERT work?"></textarea>
+        </div>
+
+        <!-- Reference Answer -->
+        <div>
+            <label class="label-tech mb-2 block">Reference Answer <span class="text-text-dim">(optional)</span></label>
+            <textarea name="reference_answer" id="reference_answer" rows="3"
+                      class="input-well w-full px-5 py-4 text-sm resize-none"
+                      placeholder="Provide a gold-standard answer for scoring..."></textarea>
+        </div>
+
+        <!-- Model Selector -->
+        <div class="flex items-center gap-6 flex-wrap">
+            <div>
+                <label class="label-tech mb-2 block">LLM Model</label>
+                <select name="model" id="model_select"
+                        class="input-well px-4 py-3 pr-10 text-sm cursor-pointer min-w-[180px]">
+                    <option value="phi3:mini">phi3:mini (2.3GB)</option>
+                    <option value="mistral">mistral (4.1GB)</option>
+                    {% if models is defined %}
+                        {% for m in models %}
+                            {% if m not in ['phi3:mini', 'mistral'] %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+            <div class="flex items-end gap-3 mt-auto">
+                <button type="button" id="btnUseTemplates" class="btn-secondary text-sm"
+                        onclick="useTemplates()">
+                    🧪 Use Templates
+                </button>
+                <button type="button" id="btnAddPrompt" class="btn-secondary text-sm"
+                        onclick="addPrompt()">
+                    ＋ Add Prompt
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Input Cards -->
+    <div class="glass-card-strong p-8 glow-cyan">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-text-primary">Prompt Variants</h2>
+            <span id="promptCounter" class="text-xs text-text-dim">3 prompts</span>
+        </div>
+
+        <div id="promptContainer" class="space-y-4">
+            <!-- Prompt 1 -->
+            <div class="prompt-card relative group" data-index="1">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold"
+                          style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">1</span>
+                    <span class="label-tech">Prompt 1</span>
+                    <button type="button" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-dim hover:text-status-error text-sm"
+                            onclick="removePrompt(this)">✕</button>
+                </div>
+                <textarea name="prompt_1" rows="3"
+                          class="input-well w-full px-5 py-3 text-sm resize-none"
+                          placeholder="Enter your first prompt variant..."></textarea>
+            </div>
+
+            <!-- Prompt 2 -->
+            <div class="prompt-card relative group" data-index="2">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold"
+                          style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">2</span>
+                    <span class="label-tech">Prompt 2</span>
+                    <button type="button" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-dim hover:text-status-error text-sm"
+                            onclick="removePrompt(this)">✕</button>
+                </div>
+                <textarea name="prompt_2" rows="3"
+                          class="input-well w-full px-5 py-3 text-sm resize-none"
+                          placeholder="Enter your second prompt variant..."></textarea>
+            </div>
+
+            <!-- Prompt 3 -->
+            <div class="prompt-card relative group" data-index="3">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold"
+                          style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">3</span>
+                    <span class="label-tech">Prompt 3</span>
+                    <button type="button" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-dim hover:text-status-error text-sm"
+                            onclick="removePrompt(this)">✕</button>
+                </div>
+                <textarea name="prompt_3" rows="3"
+                          class="input-well w-full px-5 py-3 text-sm resize-none"
+                          placeholder="Enter your third prompt variant..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden field for template mode -->
+    <input type="hidden" name="use_templates" id="use_templates_field" value="false">
+
+    <!-- Submit Button -->
+    <div class="text-center">
+        <button type="submit" id="btnSubmit" class="btn-gradient text-lg px-12 py-4 inline-flex items-center gap-3">
+            <span id="submitText">🚀 Evaluate All Prompts</span>
+            <div id="submitSpinner" class="spinner hidden"></div>
+        </button>
+    </div>
+</form>
+
+<!-- How It Works Section -->
+<section class="mt-16 mb-8 animate-slide-up" style="animation-delay: 0.3s;">
+    <h2 class="text-center text-2xl font-bold text-text-primary mb-8">How It Works</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="glass-card p-6 text-center hover:glow-purple transition-all duration-300">
+            <div class="text-3xl mb-3">✍️</div>
+            <h3 class="text-sm font-semibold text-accent-lavender mb-2">Write Prompts</h3>
+            <p class="text-xs text-text-dim">Create multiple prompt variants or use auto-templates</p>
+        </div>
+        <div class="glass-card p-6 text-center hover:glow-purple transition-all duration-300">
+            <div class="text-3xl mb-3">⚡</div>
+            <h3 class="text-sm font-semibold text-accent-lavender mb-2">Run Evaluation</h3>
+            <p class="text-xs text-text-dim">Fire all prompts to Ollama in parallel</p>
+        </div>
+        <div class="glass-card p-6 text-center hover:glow-cyan transition-all duration-300">
+            <div class="text-3xl mb-3">📊</div>
+            <h3 class="text-sm font-semibold text-accent-lavender mb-2">Compare Scores</h3>
+            <p class="text-xs text-text-dim">View 7 metrics, rankings, and error analysis</p>
+        </div>
+        <div class="glass-card p-6 text-center hover:glow-cyan transition-all duration-300">
+            <div class="text-3xl mb-3">🔄</div>
+            <h3 class="text-sm font-semibold text-accent-lavender mb-2">Optimize</h3>
+            <p class="text-xs text-text-dim">Auto-improve weakest prompts with targeted fixes</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let promptCount = 3;
+
+    // Add new prompt textarea
+    function addPrompt() {
+        promptCount++;
+        const container = document.getElementById('promptContainer');
+        const card = document.createElement('div');
+        card.className = 'prompt-card relative group animate-fade-in';
+        card.dataset.index = promptCount;
+        card.innerHTML = `
+            <div class="flex items-center gap-3 mb-2">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold"
+                      style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">${promptCount}</span>
+                <span class="label-tech">Prompt ${promptCount}</span>
+                <button type="button" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-dim hover:text-status-error text-sm"
+                        onclick="removePrompt(this)">✕</button>
+            </div>
+            <textarea name="prompt_${promptCount}" rows="3"
+                      class="input-well w-full px-5 py-3 text-sm resize-none"
+                      placeholder="Enter prompt variant ${promptCount}..."></textarea>
+        `;
+        container.appendChild(card);
+        updateCounter();
+    }
+
+    // Remove prompt card
+    function removePrompt(btn) {
+        const card = btn.closest('.prompt-card');
+        const cards = document.querySelectorAll('.prompt-card');
+        if (cards.length <= 1) return; // Keep at least 1
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(-10px)';
+        setTimeout(() => { card.remove(); updateCounter(); }, 200);
+    }
+
+    // Update counter text
+    function updateCounter() {
+        const count = document.querySelectorAll('.prompt-card').length;
+        document.getElementById('promptCounter').textContent = `${count} prompt${count !== 1 ? 's' : ''}`;
+    }
+
+    // Fill with template strategies
+    function useTemplates() {
+        const query = document.getElementById('query').value || 'your question here';
+        const container = document.getElementById('promptContainer');
+        const templates = [
+            { label: 'Zero Shot', text: query },
+            { label: 'Few Shot', text: `Here are some examples of good answers:\n\nExample 1:\nQ: What is machine learning?\nA: Machine learning is a subset of AI that enables systems to learn from experience.\n\nNow answer: ${query}` },
+            { label: 'Chain of Thought', text: `Think step by step and explain your reasoning clearly.\n\nQuestion: ${query}\n\nLet's approach this systematically:` },
+            { label: 'Role Based', text: `You are a senior expert and educator with deep knowledge in this field. Provide a comprehensive, accurate, and well-structured answer.\n\nQuestion: ${query}\n\nPlease provide a detailed answer covering key concepts, how it works, and practical applications:` },
+        ];
+
+        container.innerHTML = '';
+        promptCount = 0;
+
+        templates.forEach((t, i) => {
+            promptCount = i + 1;
+            const card = document.createElement('div');
+            card.className = 'prompt-card relative group animate-fade-in';
+            card.dataset.index = promptCount;
+            card.innerHTML = `
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold"
+                          style="background: linear-gradient(135deg, #7c3aed, #03b5d3); color: white;">${promptCount}</span>
+                    <span class="label-tech">${t.label}</span>
+                    <button type="button" class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-dim hover:text-status-error text-sm"
+                            onclick="removePrompt(this)">✕</button>
+                </div>
+                <textarea name="prompt_${promptCount}" rows="4"
+                          class="input-well w-full px-5 py-3 text-sm resize-none">${t.text}</textarea>
+            `;
+            container.appendChild(card);
+        });
+        updateCounter();
+    }
+
+    // Form submission with loading state
+    document.getElementById('evalForm').addEventListener('submit', function() {
+        const btn = document.getElementById('btnSubmit');
+        const text = document.getElementById('submitText');
+        const spinner = document.getElementById('submitSpinner');
+        text.textContent = 'Evaluating...';
+        spinner.classList.remove('hidden');
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
+</script>
+{% endblock %}

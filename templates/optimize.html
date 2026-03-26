@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Prompt Optimization — LLM Eval System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="mb-8 animate-fade-in">
+    <h1 class="text-3xl font-extrabold text-text-primary mb-2">🔄 Prompt Optimization</h1>
+    <p class="text-text-muted">Before vs After — See how targeted improvements boost prompt performance.</p>
+    <p class="label-tech mt-2">Query: {{ query }}</p>
+</section>
+
+{% if optimization.error %}
+<div class="mb-6 px-5 py-4 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error text-sm">
+    ⚠️ Optimization error: {{ optimization.error }}
+</div>
+{% endif %}
+
+<!-- Score Comparison Table -->
+<section class="glass-card-strong p-6 mb-8 animate-slide-up">
+    <h2 class="text-lg font-bold text-text-primary mb-4">📈 Score Comparison</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-text-dim text-xs uppercase tracking-wider border-b border-surface-highest/50">
+                    <th class="text-left py-3 px-4">Version</th>
+                    <th class="text-center py-3 px-4">BLEU</th>
+                    <th class="text-center py-3 px-4">ROUGE</th>
+                    <th class="text-center py-3 px-4">Relevance</th>
+                    <th class="text-center py-3 px-4">Entity</th>
+                    <th class="text-center py-3 px-4">Structure</th>
+                    <th class="text-center py-3 px-4">Judge</th>
+                    <th class="text-center py-3 px-4">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Original Row -->
+                <tr class="border-b border-surface-highest/20">
+                    <td class="py-3 px-4 font-medium text-text-muted">Original</td>
+                    {% set os = original.scores if original.scores is defined else {} %}
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.bleu|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.rouge|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.relevance|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.entity_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.structure_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-muted">{{ "%.3f"|format(os.llm_judge_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center font-bold text-status-error">{{ "%.3f"|format(os.total_score|default(0)) }}</td>
+                </tr>
+
+                <!-- Improved Row -->
+                <tr class="border-b border-surface-highest/20">
+                    <td class="py-3 px-4 font-medium text-status-success">Improved ✨</td>
+                    {% set is = optimization.improved_scores if optimization.improved_scores is defined else {} %}
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.bleu|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.rouge|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.relevance|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.entity_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.structure_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center text-text-primary">{{ "%.3f"|format(is.llm_judge_score|default(0)) }}</td>
+                    <td class="py-3 px-4 text-center font-bold text-status-success">{{ "%.3f"|format(is.total_score|default(0)) }}</td>
+                </tr>
+
+                <!-- Delta Row -->
+                {% if optimization.score_deltas is defined %}
+                <tr>
+                    <td class="py-3 px-4 font-medium text-accent-lavender">Change</td>
+                    {% set d = optimization.score_deltas %}
+                    {% for key in ['bleu', 'rouge', 'relevance', 'entity_score', 'structure_score', 'llm_judge_score', 'total_score'] %}
+                    {% set val = d.get(key, 0) if d is mapping else 0 %}
+                    <td class="py-3 px-4 text-center font-bold {% if val > 0 %}text-status-success{% elif val < 0 %}text-status-error{% else %}text-text-dim{% endif %}">
+                        {% if val > 0 %}+{% endif %}{{ "%.3f"|format(val) }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Side-by-Side Prompts -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Original Prompt -->
+    <div class="glass-card p-6 animate-slide-up">
+        <h3 class="label-tech mb-3">📝 Original Prompt</h3>
+        <div class="p-4 rounded-xl text-sm text-text-muted whitespace-pre-line leading-relaxed" style="background: #0d0d18;">
+            {{ original.prompt_text }}
+        </div>
+    </div>
+
+    <!-- Improved Prompt -->
+    <div class="glass-card p-6 animate-slide-up winner-card" style="animation-delay: 0.1s;">
+        <h3 class="label-tech mb-3" style="color: #4cd7f6;">✨ Optimized Prompt</h3>
+        <div class="p-4 rounded-xl text-sm text-text-primary whitespace-pre-line leading-relaxed"
+             style="background: rgba(124, 58, 237, 0.08);">
+            {{ optimization.improved_prompt }}
+        </div>
+    </div>
+</section>
+
+<!-- What Changed -->
+<section class="glass-card-strong p-6 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+    <h2 class="text-lg font-bold text-text-primary mb-4">🔧 What Changed & Why</h2>
+
+    <!-- Weakness Details -->
+    {% if optimization.weaknesses is defined and optimization.weaknesses.details is defined %}
+    <div class="mb-4">
+        <p class="label-tech mb-2 text-status-error">Detected Weaknesses</p>
+        <ul class="space-y-2">
+            {% for detail in optimization.weaknesses.details %}
+            <li class="flex items-start gap-2 text-sm text-text-muted">
+                <span class="text-status-error mt-0.5">●</span>
+                {{ detail }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Changes Made -->
+    {% if optimization.changes_made is defined %}
+    <div class="mb-4">
+        <p class="label-tech mb-2">Improvements Applied</p>
+        <ul class="space-y-2">
+            {% for change in optimization.changes_made %}
+            <li class="flex items-start gap-2 text-sm text-text-primary">
+                <span class="text-status-success mt-0.5">✓</span>
+                {{ change }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Reason -->
+    {% if optimization.reason is defined %}
+    <div class="mt-4 p-4 rounded-xl text-sm text-text-muted" style="background: #1b1a26;">
+        💡 <strong>Summary:</strong> {{ optimization.reason }}
+    </div>
+    {% endif %}
+</section>
+
+<!-- Response Comparison -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Original Response -->
+    <div class="glass-card p-6 animate-slide-up" style="animation-delay: 0.3s;">
+        <h3 class="label-tech mb-3">📄 Original Response</h3>
+        <div class="p-4 rounded-xl text-sm text-text-muted whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto"
+             style="background: #0d0d18;">
+            {{ original.llm_response|default('No response recorded', true) }}
+        </div>
+    </div>
+
+    <!-- Improved Response -->
+    <div class="glass-card p-6 animate-slide-up winner-card" style="animation-delay: 0.4s;">
+        <h3 class="label-tech mb-3" style="color: #4cd7f6;">📄 Improved Response</h3>
+        <div class="p-4 rounded-xl text-sm text-text-primary whitespace-pre-line leading-relaxed max-h-96 overflow-y-auto"
+             style="background: rgba(124, 58, 237, 0.08);">
+            {{ optimization.improved_response|default('No response generated', true) }}
+        </div>
+    </div>
+</section>
+
+<!-- Navigation -->
+<div class="flex items-center justify-center gap-4 mt-8">
+    <a href="/" class="btn-secondary inline-block">← Dashboard</a>
+    <a href="/history/{{ run_id }}" class="btn-secondary inline-block">View Full Results</a>
+    <a href="/history" class="btn-secondary inline-block">History →</a>
+</div>
+{% endblock %}
