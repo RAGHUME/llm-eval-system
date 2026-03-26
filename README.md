@@ -2,8 +2,14 @@
   
   # 🧪 LLM Evaluation & Prompt Optimization System
   
-  **Evaluate. Compare. Optimize.**<br>
+  **Evaluate. Compare. Optimize. Report.**<br>
   *A production-grade, 100% local toolchain to test LLM prompts against 7 advanced NLP metrics.*
+
+  [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+  [![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-000000?logo=ollama)](https://ollama.ai)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+  [![Status](https://img.shields.io/badge/Status-Production_Ready-brightgreen)](#)
 </div>
 
 ---
@@ -17,11 +23,25 @@ When developing LLM applications, **prompt engineering is often guesswork**. Dev
 **This system solves all three problems.** By combining an async FastAPI backend, an Ollama local LLM engine, and a suite of NLP scoring algorithms (BLEU, ROUGE, Cosine Similarity), it provides a complete framework for structured prompt optimization.
 
 ## ✨ Key Features
-- **🚀 100% Local Inference**: Runs locally via Ollama (default: `phi3:mini`) with zero API costs.
-- **🚥 7-Metric Evaluation Engine**: Scores responses against BLEU, ROUGE-L, Semantic Relevance, Entity Coverage, Formatting Structure, Run-to-Run Consistency, and an LLM-as-a-Judge.
-- **🤖 Automated Prompt Optimization**: Identifies weaknesses (e.g., hallucination, missing entities, verbosity) and automatically generates an improved prompt strategy.
-- **⚡ Asynchronous Architecture**: Utilizes `asyncio.Semaphore` and `httpx` to handle parallel prompt evaluations without deadlocking the open-source LLM engine.
-- **🎛️ "Lumina Eval" UI**: A premium, responsive dashboard built with Jinja2, Tailwind CSS (glassmorphism design), and Chart.js for data visualization.
+
+### Core Engine (Phase 1)
+| Feature | Description |
+|---------|-------------|
+| 🚀 **100% Local Inference** | Runs locally via Ollama (default: `phi3:mini`) with zero API costs |
+| 🚥 **7-Metric Scoring Engine** | BLEU, ROUGE-L, Semantic Relevance, Entity Coverage, Structure, Consistency, LLM-as-a-Judge |
+| 🤖 **Auto Prompt Optimizer** | Identifies weaknesses (hallucination, entity gaps, verbosity) and generates improved prompts |
+| ⚡ **Async Architecture** | `asyncio.Semaphore` + `httpx` for safe concurrent inference on consumer hardware |
+| 🎛️ **Lumina Eval UI** | Premium dark dashboard with Tailwind CSS glassmorphism + Chart.js |
+
+### Advanced Features (Phase 2)
+| Feature | Description |
+|---------|-------------|
+| 🧭 **Smart Prompt Guide** | Real-time coaching as you type — 6 quality checks with a 5-level Strategy Ladder |
+| 📊 **Dataset Evaluation** | Upload JSON datasets (up to 50 Qs) → batch test all 4 strategies → win rates & aggregated scores |
+| 🔄 **Iteration Tracker** | Auto-tracks prompt evolution (v1 → v2 → v3) with score progression line charts |
+| 🔬 **Deep Error Analysis** | Root cause, evidence snippets, and fix suggestions per failing metric |
+| ⚔️ **Model Comparison** | Side-by-side multi-model scoring with progress bars and grouped bar charts |
+| 📄 **Report Generator** | One-click downloadable self-contained HTML reports — shareable without server access |
 
 ---
 
@@ -35,8 +55,12 @@ graph TD
     D -->|Local Inference| F[phi3:mini LLM]
     D -->|Responses| E[Evaluation Pipeline]
     E -->|N-Gram & Embeddings| G[7 NLP Scorer Metrics]
-    E -->|Error Analysis| H[Optimization Engine]
-    E -->|SQLAlchemy ORM| I[(SQLite DB)]
+    E -->|Error Analysis| H[Deep Error Engine]
+    E -->|Lineage Tracking| I[Iteration Tracker]
+    E -->|SQLAlchemy ORM| J[(SQLite DB)]
+    B -->|Batch Mode| K[Dataset Evaluator]
+    B -->|Multi-Model| L[Model Comparator]
+    B -->|HTML Export| M[Report Generator]
 ```
 
 ## 🛠️ Technology Stack
@@ -44,7 +68,7 @@ graph TD
 |-------|------------|---------------|
 | **Backend** | Python, FastAPI, Uvicorn | High-performance async request handling |
 | **LLM Engine** | Ollama | Secure, cost-free local open-weight inference |
-| **NLP/ML** | NLTK, rouge-score, sentence-transformers | Industry standard metric calculation |
+| **NLP/ML** | NLTK, rouge-score, sentence-transformers, spaCy | Industry standard metric calculation |
 | **Database** | SQLite, SQLAlchemy | Lightweight embedded persistence with ORM reliability |
 | **Frontend** | HTML5, Tailwind CSS, Jinja2, Chart.js | SSR architecture with zero heavy JS framework hydration |
 
@@ -82,19 +106,75 @@ Open **[http://localhost:8000](http://localhost:8000)** in your browser!
 
 ---
 
+## 🗺️ Navigation
+
+| Page | Path | Purpose |
+|------|------|---------|
+| **Dashboard** | `/` | Main evaluation form + live prompt coaching |
+| **Results** | `/evaluate` | Score table, Chart.js radar, deep error analysis + report download |
+| **Dataset** | `/dataset` | Batch evaluation across 4 strategies × N questions |
+| **Compare** | `/compare` | Side-by-side multi-model scoring |
+| **Iterations** | `/iterations` | Prompt evolution timeline with score progression |
+| **History** | `/history` | All past runs with detail drill-down |
+| **Health** | `/health` | API status JSON |
+
+---
+
 ## 📂 Project Structure
 ```text
 llm-eval-system/
-├── core/                  # Database models, LLM connection, and prompt generation
-├── evaluation/metrics/    # 7 independent scoring algorithms (BLEU, ROUGE, Relevance, etc.)
-├── analysis/              # Error detection and hallucination flagging
-├── optimization/          # Automated iterative prompt improvement loop
-├── api/                   # FastAPI route handlers (Main, Evaluate, Optimize, History)
-├── templates/             # Server-side rendered Jinja2 templates (Lumina UI)
-└── main.py                # Application entry point
+├── core/                   # Database models, LLM connection, prompt engine, report generator
+│   ├── database.py         # SQLAlchemy models (EvalRun, PromptResult, Score, PromptLineage)
+│   ├── ollama_interface.py # Async LLM communication + model comparison
+│   ├── prompt_engine.py    # 4-strategy prompt variant generator
+│   ├── dataset_loader.py   # JSON dataset parser with validation
+│   └── report_generator.py # Self-contained HTML report builder
+├── evaluation/             # Scoring pipeline
+│   ├── evaluator.py        # 7-metric orchestrator
+│   ├── batch_evaluator.py  # Dataset-level batch evaluation engine
+│   └── metrics/            # Individual metric modules (BLEU, ROUGE, etc.)
+├── analysis/               # Error detection + prompt coaching
+│   ├── error_analyzer.py   # Error flags + deep error explanation engine
+│   └── prompt_guide.py     # Real-time prompt quality analysis (6 checks)
+├── optimization/           # Automated prompt improvement
+│   └── optimizer.py        # Weakness analysis → prompt rewrite → re-eval loop
+├── api/                    # FastAPI route handlers
+│   └── routes.py           # All 14 endpoints
+├── templates/              # Server-side rendered Jinja2 templates
+│   ├── base.html           # Lumina UI design system (dark mode + glassmorphism)
+│   ├── index.html          # Dashboard + live prompt guide
+│   ├── results.html        # Score table + deep analysis + report download
+│   ├── dataset.html        # Batch evaluation UI
+│   ├── compare.html        # Model comparison UI
+│   ├── iterations.html     # Prompt evolution timeline
+│   ├── history.html        # Run history + detail view
+│   └── optimize.html       # Before/after optimization comparison
+├── docs/                   # Documentation
+│   └── RESEARCH.md         # Market analysis & competitive comparison
+├── demo/                   # Demo scripts
+│   └── run_full_demo.py    # Automated end-to-end demo
+└── main.py                 # Application entry point
 ```
 
+---
+
+## 🏆 Competitive Positioning
+
+| Feature | **This Project** | **Promptfoo** | **DeepEval** | **LangSmith** |
+|---------|:----------------:|:-------------:|:------------:|:-------------:|
+| Open Source | ✅ | ✅ | ⚠️ Core only | ❌ Paid |
+| Local LLMs (Ollama) | ✅ Native | ⚠️ Config | 🟡 Complex | ❌ Cloud |
+| Premium Web UI | ✅ Built-in | 🟡 Basic | ❌ CLI only | ✅ Enterprise |
+| Auto-Optimizer | ✅ Agentic | ❌ | ❌ | ❌ |
+| Dataset Batch Eval | ✅ | ✅ | ✅ | ✅ |
+| Model Comparison | ✅ | ✅ | 🟡 | ✅ |
+| Iteration Tracking | ✅ Auto | ❌ | ❌ | 🟡 Manual |
+| Deep Error Analysis | ✅ | ❌ | ❌ | ❌ |
+| Report Export | ✅ HTML | ❌ | ❌ | 🟡 PDF |
+| Smart Prompt Coach | ✅ Real-time | ❌ | ❌ | ❌ |
+| Cost | **Free** | Free | Freemium | $$$$ |
+
 ## 🚀 Status
-✅ **Production Ready** — Evaluator, auto-optimizer, and UI are fully built, thoroughly linted, and verified.
+✅ **Production Ready** — Phase 1 (Core Engine) + Phase 2 (6 Advanced Features) fully built, tested, and verified.
 
 *Built by [RAGHUME](https://github.com/RAGHUME) to demonstrate advanced GenAI toolchain engineering.*

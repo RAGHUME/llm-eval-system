@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluation Report — Run #99</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter','Segoe UI',sans-serif; background:#0a0a14; color:#e0d8f0; padding:40px 20px; }
+    .container { max-width:900px; margin:0 auto; }
+    .header { text-align:center; margin-bottom:40px; padding-bottom:24px; border-bottom:1px solid rgba(210,187,255,0.1); }
+    .header h1 { font-size:28px; background:linear-gradient(135deg,#7c3aed,#03b5d3); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; }
+    .header p { font-size:13px; color:#958da1; }
+    .meta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:32px; }
+    .meta-card { background:rgba(31,30,42,0.6); border:1px solid rgba(210,187,255,0.08); border-radius:12px; padding:16px; }
+    .meta-card .label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#958da1; margin-bottom:4px; }
+    .meta-card .value { font-size:15px; font-weight:700; color:#e0d8f0; word-break:break-word; }
+    .section { margin-bottom:32px; }
+    .section h2 { font-size:18px; font-weight:700; margin-bottom:16px; color:#e0d8f0; }
+    .chart-container { background:rgba(31,30,42,0.4); border-radius:12px; padding:20px; margin-bottom:32px; }
+    .footer { text-align:center; padding-top:24px; border-top:1px solid rgba(210,187,255,0.08); font-size:11px; color:#958da1; }
+    @media print {
+        body { background:white; color:#1a1a2e; padding:20px; }
+        .meta-card { border:1px solid #ddd; }
+        .chart-container { border:1px solid #ddd; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h1>📊 LLM Evaluation Report</h1>
+        <p>Run #99 · Generated 2026-03-26 22:19 UTC</p>
+    </div>
+
+    <!-- Metadata -->
+    <div class="meta-grid">
+        <div class="meta-card">
+            <div class="label">Query</div>
+            <div class="value">How does BERT work?</div>
+        </div>
+        <div class="meta-card">
+            <div class="label">Model</div>
+            <div class="value">phi3:mini</div>
+        </div>
+        <div class="meta-card">
+            <div class="label">Strategies Tested</div>
+            <div class="value">2</div>
+        </div>
+        <div class="meta-card">
+            <div class="label">Best Score</div>
+            <div class="value" style="color:#4ade80;">0.567</div>
+        </div>
+        <div class="meta-card">
+            <div class="label">Evaluated At</div>
+            <div class="value">2026-03-27 03:00</div>
+        </div>
+        <div class="meta-card">
+            <div class="label">Reference Answer</div>
+            <div class="value" style="font-size:12px;">BERT uses bidirectional transformers...</div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container">
+        <h2 style="margin-bottom:16px;">Score Comparison</h2>
+        <canvas id="reportChart" height="200"></canvas>
+    </div>
+
+    <!-- Results -->
+    <div class="section">
+        <h2>Strategy Results</h2>
+        
+        <div style="background:rgba(124,58,237,0.06);border:1px solid rgba(210,187,255,0.1);border-radius:12px;padding:20px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;font-size:15px;color:#e0d8f0;">🏆 #1 — Zero Shot</h3>
+                <span style="font-size:20px;font-weight:800;color:#4ade80;">0.567</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">
+                <tr style="color:#958da1;">
+                    <td style="padding:4px 8px;">BLEU</td><td style="padding:4px 8px;">ROUGE</td>
+                    <td style="padding:4px 8px;">Relevance</td><td style="padding:4px 8px;">Entity</td>
+                    <td style="padding:4px 8px;">Structure</td><td style="padding:4px 8px;">Judge</td>
+                </tr>
+                <tr style="color:#e0d8f0;font-weight:600;">
+                    <td style="padding:4px 8px;">0.350</td><td style="padding:4px 8px;">0.420</td>
+                    <td style="padding:4px 8px;">0.780</td><td style="padding:4px 8px;">0.650</td>
+                    <td style="padding:4px 8px;">0.500</td><td style="padding:4px 8px;">0.700</td>
+                </tr>
+            </table>
+            <details style="margin-top:8px;">
+                <summary style="cursor:pointer;font-size:12px;color:#a78bfa;">View Prompt &amp; Response</summary>
+                <div style="margin-top:8px;">
+                    <p style="font-size:11px;color:#958da1;margin-bottom:4px;font-weight:600;">Prompt:</p>
+                    <pre style="background:#0d0d18;padding:10px;border-radius:8px;font-size:11px;color:#ccc3d8;white-space:pre-wrap;overflow-x:auto;">Explain BERT</pre>
+                    <p style="font-size:11px;color:#958da1;margin-bottom:4px;margin-top:8px;font-weight:600;">Response (preview):</p>
+                    <pre style="background:#0d0d18;padding:10px;border-radius:8px;font-size:11px;color:#ccc3d8;white-space:pre-wrap;overflow-x:auto;">BERT is a model...</pre>
+                </div>
+            </details>
+            
+        </div>
+        
+        <div style="background:rgba(31,30,42,0.5);border:1px solid rgba(210,187,255,0.1);border-radius:12px;padding:20px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h3 style="margin:0;font-size:15px;color:#e0d8f0;">#2 — Chain of Thought</h3>
+                <span style="font-size:20px;font-weight:800;color:#fbbf24;">0.455</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">
+                <tr style="color:#958da1;">
+                    <td style="padding:4px 8px;">BLEU</td><td style="padding:4px 8px;">ROUGE</td>
+                    <td style="padding:4px 8px;">Relevance</td><td style="padding:4px 8px;">Entity</td>
+                    <td style="padding:4px 8px;">Structure</td><td style="padding:4px 8px;">Judge</td>
+                </tr>
+                <tr style="color:#e0d8f0;font-weight:600;">
+                    <td style="padding:4px 8px;">0.220</td><td style="padding:4px 8px;">0.310</td>
+                    <td style="padding:4px 8px;">0.600</td><td style="padding:4px 8px;">0.350</td>
+                    <td style="padding:4px 8px;">0.700</td><td style="padding:4px 8px;">0.550</td>
+                </tr>
+            </table>
+            <details style="margin-top:8px;">
+                <summary style="cursor:pointer;font-size:12px;color:#a78bfa;">View Prompt &amp; Response</summary>
+                <div style="margin-top:8px;">
+                    <p style="font-size:11px;color:#958da1;margin-bottom:4px;font-weight:600;">Prompt:</p>
+                    <pre style="background:#0d0d18;padding:10px;border-radius:8px;font-size:11px;color:#ccc3d8;white-space:pre-wrap;overflow-x:auto;">Step by step, explain BERT</pre>
+                    <p style="font-size:11px;color:#958da1;margin-bottom:4px;margin-top:8px;font-weight:600;">Response (preview):</p>
+                    <pre style="background:#0d0d18;padding:10px;border-radius:8px;font-size:11px;color:#ccc3d8;white-space:pre-wrap;overflow-x:auto;">Step 1...</pre>
+                </div>
+            </details>
+            <div style="margin-top:8px;"><span style="background:#3b1720;color:#f87171;padding:2px 8px;border-radius:6px;font-size:11px;margin-right:4px;">⚠️ Missing entities</span></div>
+        </div>
+        
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated by <strong>LLM Evaluation &amp; Prompt Optimization System</strong></p>
+        <p style="margin-top:4px;">github.com/RAGHUME/llm-eval-system</p>
+    </div>
+</div>
+
+<script>
+
+    const labels = ['Zero Shot', 'Chain of Thought'];
+    const totals = [0.567, 0.455];
+    const bleuData = [0.35, 0.22];
+    const rougeData = [0.42, 0.31];
+    const relevanceData = [0.78, 0.6];
+    
+if (labels.length > 0) {
+    const ctx = document.getElementById('reportChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Total', data: totals, backgroundColor: 'rgba(124,58,237,0.8)', borderRadius: 4 },
+                { label: 'BLEU', data: bleuData, backgroundColor: 'rgba(167,139,250,0.7)', borderRadius: 4 },
+                { label: 'ROUGE', data: rougeData, backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 4 },
+                { label: 'Relevance', data: relevanceData, backgroundColor: 'rgba(76,215,246,0.7)', borderRadius: 4 },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#ccc3d8' } } },
+            scales: {
+                x: { ticks: { color: '#958da1' }, grid: { color: 'rgba(149,141,161,0.1)' } },
+                y: { min: 0, max: 1, ticks: { color: '#958da1' }, grid: { color: 'rgba(149,141,161,0.1)' } }
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>
