@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}LLM Eval System — Dataset Evaluation{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="mb-8 animate-fade-in">
+    <h1 class="text-3xl font-extrabold text-text-primary mb-2">📊 Dataset Evaluation Mode</h1>
+    <p class="text-text-muted">Test prompt strategies across multiple questions to find the best overall approach.</p>
+</section>
+
+{% if error %}
+<div class="mb-6 px-5 py-4 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error text-sm animate-fade-in">
+    ⚠️ {{ error }}
+</div>
+{% endif %}
+
+{% if not results %}
+<!-- Dataset Input Form -->
+<form id="datasetForm" method="POST" action="/evaluate-dataset" class="space-y-6 animate-slide-up">
+    <div class="glass-card-strong p-8 glow-purple">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-text-primary">Dataset Input</h2>
+            <button type="button" onclick="loadSample()" class="btn-secondary text-sm">📋 Load Sample Dataset</button>
+        </div>
+
+        <div class="mb-4">
+            <label class="label-tech mb-2 block">JSON Dataset</label>
+            <textarea name="dataset_json" id="datasetInput" rows="12"
+                      class="input-well w-full px-5 py-4 text-sm resize-none font-mono"
+                      placeholder='[
+  {"question": "What is AI?", "answer": "AI is the simulation of human intelligence..."},
+  {"question": "Explain BERT", "answer": "BERT is a transformer model using..."}
+]'
+                      required></textarea>
+            <p class="text-xs text-text-dim mt-2">Paste a JSON array of question-answer pairs (max 50). Each item needs "question" and "answer" fields.</p>
+        </div>
+
+        <!-- Model Selector -->
+        <div class="flex items-center gap-6 flex-wrap">
+            <div>
+                <label class="label-tech mb-2 block">LLM Model</label>
+                <select name="model" class="input-well px-4 py-3 pr-10 text-sm cursor-pointer min-w-[180px]">
+                    <option value="phi3:mini">phi3:mini (2.3GB)</option>
+                    <option value="mistral">mistral (4.1GB)</option>
+                </select>
+            </div>
+            <div class="text-xs text-text-dim mt-auto">
+                <p>⏱ Estimated time: ~1-2 min per question × 4 strategies</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center">
+        <button type="submit" id="btnSubmit" class="btn-gradient text-lg px-12 py-4 inline-flex items-center gap-3">
+            <span id="submitText">🚀 Evaluate Entire Dataset</span>
+            <div id="submitSpinner" class="spinner hidden"></div>
+        </button>
+    </div>
+</form>
+
+{% else %}
+<!-- RESULTS VIEW -->
+
+<!-- Winner Banner -->
+<div class="glass-card-strong p-6 mb-8 glow-purple animate-fade-in">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="label-tech mb-1">🏆 Best Overall Strategy</p>
+            <h2 class="text-2xl font-extrabold text-accent-lavender">{{ results.winner }}</h2>
+            <p class="text-sm text-text-muted mt-1">
+                Tested across {{ results.total_questions }} questions using 4 strategies
+            </p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-text-dim">Win Rate</p>
+            <p class="text-3xl font-extrabold text-status-success">
+                {{ results.strategies[results.winner_key].win_rate }}%
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Strategy Comparison Table -->
+<section class="glass-card-strong p-6 mb-8 animate-slide-up">
+    <h2 class="text-lg font-bold text-text-primary mb-4">Strategy Comparison</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-text-dim text-xs uppercase tracking-wider">
+                    <th class="pb-3 pr-4">Strategy</th>
+                    <th class="pb-3 pr-4 text-center">Avg BLEU</th>
+                    <th class="pb-3 pr-4 text-center">Avg ROUGE</th>
+                    <th class="pb-3 pr-4 text-center">Avg Relevance</th>
+                    <th class="pb-3 pr-4 text-center">Avg Entity</th>
+                    <th class="pb-3 pr-4 text-center">Avg Total</th>
+                    <th class="pb-3 pr-4 text-center">Win Rate</th>
+                    <th class="pb-3 text-center">Consistency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, s in results.strategies.items() %}
+                <tr class="border-t border-surface-high/30 {% if key == results.winner_key %}bg-accent-purple/10{% endif %}">
+                    <td class="py-3 pr-4 font-semibold text-text-primary flex items-center gap-2">
+                        {% if key == results.winner_key %}🏆{% endif %}
+                        {{ s.display_name }}
+                    </td>
+                    <td class="py-3 pr-4 text-center {% if s.avg_bleu > 0.3 %}score-high{% elif s.avg_bleu > 0.15 %}score-mid{% else %}score-low{% endif %}">
+                        {{ s.avg_bleu }}
+                    </td>
+                    <td class="py-3 pr-4 text-center {% if s.avg_rouge > 0.3 %}score-high{% elif s.avg_rouge > 0.15 %}score-mid{% else %}score-low{% endif %}">
+                        {{ s.avg_rouge }}
+                    </td>
+                    <td class="py-3 pr-4 text-center {% if s.avg_relevance > 0.5 %}score-high{% elif s.avg_relevance > 0.3 %}score-mid{% else %}score-low{% endif %}">
+                        {{ s.avg_relevance }}
+                    </td>
+                    <td class="py-3 pr-4 text-center {% if s.avg_entity > 0.4 %}score-high{% elif s.avg_entity > 0.2 %}score-mid{% else %}score-low{% endif %}">
+                        {{ s.avg_entity }}
+                    </td>
+                    <td class="py-3 pr-4 text-center font-bold {% if s.avg_total > 0.5 %}score-high{% elif s.avg_total > 0.3 %}score-mid{% else %}score-low{% endif %}">
+                        {{ s.avg_total }}
+                    </td>
+                    <td class="py-3 pr-4 text-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold {% if s.win_rate >= 40 %}bg-status-success/20 text-status-success{% elif s.win_rate >= 20 %}bg-status-warning/20 text-status-warning{% else %}bg-surface-high/40 text-text-dim{% endif %}">
+                            {{ s.win_rate }}%
+                        </span>
+                    </td>
+                    <td class="py-3 text-center text-text-dim">±{{ s.std_dev }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Chart -->
+<section class="glass-card p-6 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+    <h2 class="text-lg font-bold text-text-primary mb-4">Strategy Performance Chart</h2>
+    <div style="height: 320px;">
+        <canvas id="strategyChart"></canvas>
+    </div>
+</section>
+
+<!-- Per-Question Breakdown -->
+<section class="glass-card p-6 mb-8 animate-slide-up" style="animation-delay: 0.3s;">
+    <h2 class="text-lg font-bold text-text-primary mb-4">Per-Question Breakdown</h2>
+    <div class="space-y-3">
+        {% for q in results.per_question %}
+        <div class="p-4 rounded-xl" style="background: rgba(31,30,42,0.5); border: 1px solid rgba(210,187,255,0.06);">
+            <div class="flex items-start justify-between mb-2">
+                <p class="text-sm font-semibold text-text-primary">Q{{ loop.index }}: {{ q.question }}</p>
+                <span class="text-xs font-bold text-status-success ml-4 whitespace-nowrap">🏆 {{ q.winner }} ({{ q.best_score }})</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                {% for strategy, data in q.results.items() %}
+                <div class="text-xs px-2 py-1.5 rounded-lg {% if strategy == results.winner_key %}bg-accent-purple/15 border border-accent-purple/30{% else %}bg-surface-high/20{% endif %}">
+                    <span class="text-text-dim">{{ strategy|replace('_',' ')|title }}:</span>
+                    <span class="font-bold {% if data.score > 0.5 %}text-status-success{% elif data.score > 0.3 %}text-status-warning{% else %}text-status-error{% endif %}">
+                        {{ data.score }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Back -->
+<div class="text-center">
+    <a href="/dataset" class="btn-secondary inline-block mr-3">← Run Another Dataset</a>
+    <a href="/" class="btn-secondary inline-block">🏠 Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not results %}
+<script>
+    function loadSample() {
+        const sample = [
+            {"question": "What is artificial intelligence?", "answer": "Artificial intelligence is the simulation of human intelligence by computer systems. It includes learning, reasoning, problem-solving, perception, and language understanding."},
+            {"question": "Explain how photosynthesis works", "answer": "Photosynthesis is the process by which green plants use sunlight, carbon dioxide, and water to produce glucose and oxygen. It occurs in chloroplasts using chlorophyll pigment."},
+            {"question": "What is the difference between TCP and UDP?", "answer": "TCP is connection-oriented and reliable with guaranteed delivery and ordering. UDP is connectionless and faster but unreliable with no delivery guarantee. TCP is used for web browsing and email. UDP is used for streaming and gaming."},
+            {"question": "How does a neural network learn?", "answer": "A neural network learns through forward propagation to make predictions, computing a loss function to measure error, then backpropagation to calculate gradients, and gradient descent to update weights. This cycle repeats over many epochs."},
+            {"question": "What is blockchain technology?", "answer": "Blockchain is a decentralized, distributed digital ledger that records transactions across multiple computers. Each block contains transaction data, a timestamp, and a cryptographic hash of the previous block, forming an immutable chain."}
+        ];
+        document.getElementById('datasetInput').value = JSON.stringify(sample, null, 2);
+    }
+
+    document.getElementById('datasetForm').addEventListener('submit', function() {
+        const btn = document.getElementById('btnSubmit');
+        const text = document.getElementById('submitText');
+        const spinner = document.getElementById('submitSpinner');
+        text.textContent = 'Evaluating dataset... this may take several minutes';
+        spinner.classList.remove('hidden');
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
+</script>
+{% else %}
+<!-- Chart rendering -->
+<script id="strategy-data" type="application/json">
+{{ results.strategies|tojson|safe }}
+</script>
+<script>
+    const stratDataEl = document.getElementById('strategy-data');
+    const stratData = stratDataEl ? JSON.parse(stratDataEl.textContent) : {};
+    const stratKeys = Object.keys(stratData);
+
+    if (stratKeys.length > 0) {
+        const labels = stratKeys.map(k => stratData[k].display_name);
+        const metrics = [
+            {key: 'avg_bleu', label: 'BLEU', color: 'rgba(124,58,237,0.8)'},
+            {key: 'avg_rouge', label: 'ROUGE', color: 'rgba(167,139,250,0.8)'},
+            {key: 'avg_relevance', label: 'Relevance', color: 'rgba(6,182,212,0.8)'},
+            {key: 'avg_entity', label: 'Entity', color: 'rgba(76,215,246,0.8)'},
+            {key: 'avg_structure', label: 'Structure', color: 'rgba(210,187,255,0.8)'},
+            {key: 'avg_total', label: 'Total', color: 'rgba(255,213,79,0.9)'},
+        ];
+        const datasets = metrics.map(m => ({
+            label: m.label,
+            data: stratKeys.map(k => stratData[k][m.key]),
+            backgroundColor: m.color,
+            borderColor: m.color.replace('0.8','1').replace('0.9','1'),
+            borderWidth: 1,
+            borderRadius: 4,
+        }));
+
+        const ctx = document.getElementById('strategyChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#ccc3d8', font: { family: 'Inter', size: 11 } } }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#958da1', font: { family: 'Inter', size: 11 } },
+                        grid: { color: 'rgba(149,141,161,0.1)' },
+                    },
+                    y: {
+                        min: 0, max: 1,
+                        ticks: { color: '#958da1', font: { family: 'Inter', size: 11 } },
+                        grid: { color: 'rgba(149,141,161,0.1)' },
+                    },
+                },
+            },
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

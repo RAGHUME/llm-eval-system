@@ -420,3 +420,56 @@ async def analyze_prompt_route(request: Request):
 
     result = analyze_prompt(prompt_text)
     return JSONResponse(result)
+
+
+# ===========================================================================
+# GET /dataset — Dataset Evaluation Form
+# POST /evaluate-dataset — Run Batch Evaluation
+# ===========================================================================
+
+@router.get("/dataset", response_class=HTMLResponse)
+async def dataset_page(request: Request):
+    """Show the dataset evaluation input form."""
+    return templates.TemplateResponse(
+        name="dataset.html",
+        request=request,
+        context={"results": None, "error": None},
+    )
+
+
+@router.post("/evaluate-dataset", response_class=HTMLResponse)
+async def evaluate_dataset_route(request: Request, dataset_json: str = Form(...), model: str = Form("phi3:mini")):
+    """
+    Run all 4 prompt strategies across every question in the uploaded dataset.
+    Returns the strategy comparison results page.
+    """
+    from core.dataset_loader import load_from_json_string
+    from evaluation.batch_evaluator import evaluate_dataset
+
+    try:
+        # Parse and validate the dataset
+        dataset = load_from_json_string(dataset_json)
+        logger.info(f"Starting dataset evaluation: {len(dataset)} questions × 4 strategies on {model}")
+
+        # Run the full batch evaluation
+        results = await evaluate_dataset(dataset, model=model)
+
+        return templates.TemplateResponse(
+            name="dataset.html",
+            request=request,
+            context={"results": results, "error": None},
+        )
+
+    except ValueError as e:
+        return templates.TemplateResponse(
+            name="dataset.html",
+            request=request,
+            context={"results": None, "error": str(e)},
+        )
+    except Exception as e:
+        logger.error(f"Dataset evaluation error: {e}")
+        return templates.TemplateResponse(
+            name="dataset.html",
+            request=request,
+            context={"results": None, "error": f"Evaluation failed: {str(e)}"},
+        )
