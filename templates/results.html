@@ -126,6 +126,36 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        <!-- Deep Error Analysis (Upgrade 4) -->
+        {% if result.deep_analysis is defined and result.deep_analysis|length > 0 %}
+        <div class="mt-4 pt-4" style="border-top: 1px solid rgba(210,187,255,0.08);">
+            <div class="flex items-center gap-2 mb-3 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                <span class="text-sm">🔬</span>
+                <p class="text-xs font-bold text-accent-lavender">Deep Error Analysis</p>
+                <span class="text-xs text-text-dim ml-1">({{ result.deep_analysis|length }} findings — click to expand)</span>
+                <span class="text-xs text-text-dim ml-auto">▼</span>
+            </div>
+            <div class="space-y-3 hidden">
+                {% for finding in result.deep_analysis %}
+                <div class="p-3 rounded-xl {% if finding.severity == 'critical' %}bg-status-error/8 border border-status-error/20{% elif finding.severity == 'warning' %}bg-status-warning/8 border border-status-warning/20{% elif finding.severity == 'success' %}bg-status-success/8 border border-status-success/20{% else %}bg-surface-high/20 border border-surface-high/20{% endif %}">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="text-sm">{{ finding.icon }}</span>
+                        <span class="text-xs font-bold {% if finding.severity == 'critical' %}text-status-error{% elif finding.severity == 'warning' %}text-status-warning{% elif finding.severity == 'success' %}text-status-success{% else %}text-accent-cyan{% endif %}">
+                            {{ finding.title }}
+                        </span>
+                        <span class="text-xs ml-auto px-2 py-0.5 rounded-full {% if finding.severity == 'critical' %}bg-status-error/20 text-status-error{% elif finding.severity == 'warning' %}bg-status-warning/20 text-status-warning{% elif finding.severity == 'success' %}bg-status-success/20 text-status-success{% else %}bg-accent-cyan/20 text-accent-cyan{% endif %}">
+                            {{ finding.severity }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-text-muted mb-1.5"><strong class="text-text-primary">Why:</strong> {{ finding.root_cause }}</p>
+                    <p class="text-xs text-text-dim mb-1.5 italic"><strong class="text-text-primary">Evidence:</strong> {{ finding.evidence[:200] }}</p>
+                    <p class="text-xs text-accent-cyan"><strong class="text-text-primary">Fix:</strong> {{ finding.fix }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endfor %}
 </section>

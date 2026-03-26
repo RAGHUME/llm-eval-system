@@ -220,6 +220,16 @@ async def evaluate(
 
         update_result_rank(result_id, result.get("rank", 0))
 
+    # --- Deep Error Analysis (Upgrade 4) ---
+    from analysis.error_analyzer import deep_analyze
+    for result in ranked:
+        result["deep_analysis"] = deep_analyze(
+            query=query,
+            reference=reference_answer,
+            response=result.get("response", ""),
+            scores=result.get("scores", {}),
+        )
+
     # --- Render results ---
     return templates.TemplateResponse(
         request=request,
